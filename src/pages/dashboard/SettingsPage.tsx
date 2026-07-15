@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { User, Bell, Shield, Palette, Check, Upload, Link2, Image } from 'lucide-react';
+
+import { User, Bell, Shield, Check, Upload, Link2, Image } from 'lucide-react';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Avatar } from '../../components/ui/Avatar';
-import { Badge } from '../../components/ui/Badge';
+
 import { FadeIn } from '../../components/ui/motion';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -16,7 +16,6 @@ const sections = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'security', label: 'Security', icon: Shield },
-  { id: 'appearance', label: 'Appearance', icon: Palette },
 ];
 
 const presetAvatars = [
@@ -37,7 +36,7 @@ export default function SettingsPage() {
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [notif, setNotif] = useState({ email: true, push: true, weekly: false, mentions: true });
-  const [theme, setTheme] = useState('light');
+  
 
   // Avatar state
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -198,60 +197,84 @@ export default function SettingsPage() {
                         checked={notif[n.key as keyof typeof notif]}
                         onChange={(v) => setNotif((prev) => ({ ...prev, [n.key]: v }))}
                       />
+                      
+                      
+
                     </div>
                   ))}
                 </div>
               </Card>
             </FadeIn>
           )}
-
           {active === 'security' && (
-            <FadeIn delay={0.08}>
-              <Card>
-                <CardHeader title="Security" subtitle="Keep your account safe" />
-                <div className="space-y-4">
-                  <Input label="Current password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" leftIcon="Lock" />
-                  <Input label="New password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" leftIcon="Lock" />
-                  <Input label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" leftIcon="Lock" />
-                  <div className="flex items-center gap-2 rounded-xl border border-border-soft bg-cream-100/40 p-3">
-                    <Shield className="h-4 w-4 text-success" />
-                    <span className="text-sm text-ink-soft">Two-factor authentication is</span>
-                    <Badge tone="success" dot>Enabled</Badge>
-                  </div>
-                  <Button leftIcon="Check" onClick={handleUpdatePassword}>Update password</Button>
-                </div>
-              </Card>
-            </FadeIn>
-          )}
+  <FadeIn delay={0.08}>
+    <Card className="w-full">
+      <CardHeader
+        title="Security"
+        subtitle="Keep your account safe"
+      />
 
-          {active === 'appearance' && (
-            <FadeIn delay={0.08}>
-              <Card>
-                <CardHeader title="Appearance" subtitle="Customize how CampusOS looks" />
-                <p className="mb-3 text-sm font-semibold text-ink">Theme</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: 'light', label: 'Light', preview: 'bg-cream' },
-                    { id: 'warm', label: 'Warm', preview: 'bg-sand-cream' },
-                    { id: 'navy', label: 'Navy', preview: 'bg-navy' },
-                  ].map((t) => (
-                    <motion.button
-                      key={t.id}
-                      whileHover={{ y: -3 }}
-                      onClick={() => { setTheme(t.id); toast({ title: 'Theme updated', variant: 'success' }); }}
-                      className={`overflow-hidden rounded-xl border-2 transition-colors ${theme === t.id ? 'border-navy' : 'border-border-soft'}`}
-                    >
-                      <div className={`h-16 ${t.preview}`} />
-                      <div className="flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-ink">
-                        {theme === t.id && <Check className="h-3 w-3 text-navy" />} {t.label}
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              </Card>
-            </FadeIn>
-          )}
+      <div className="grid gap-6 md:grid-cols-2">
+
+        <Input
+          label="Current Password"
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+        />
+
+        <Input
+          label="New Password"
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+        />
+
+        <div className="md:col-span-2">
+          <Input
+            label="Confirm Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
         </div>
+
+        <div className="md:col-span-2 border-t border-border pt-6">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-card-surface p-4">
+            <div>
+              <h4 className="font-semibold text-ink">
+                Two-Factor Authentication
+              </h4>
+              <p className="mt-1 text-sm text-ink-soft">
+                Add an extra layer of security to your account.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
+              Coming Soon
+            </span>
+          </div>
+        </div>
+
+        <div className="md:col-span-2 flex justify-end">
+          <Button
+            leftIcon="Check"
+            onClick={handleUpdatePassword}
+          >
+            Update Password
+          </Button>
+        </div>
+
+      </div>
+    </Card>
+  </FadeIn>
+)}
+          
+
+          
+          
+        </div>
+        
       </div>
 
       {/* ── Avatar Modal ── */}
