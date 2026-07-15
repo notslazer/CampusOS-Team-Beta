@@ -104,6 +104,14 @@ const presetPhotos = [
   'https://images.pexels.com/photos/3182750/pexels-photo-3182750.jpeg?auto=compress&cs=tinysrgb&w=600'
 ];
 
+const heroImages = [
+  'https://images.pexels.com/photos/2041627/pexels-photo-2041627.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  'https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  'https://images.pexels.com/photos/1181359/pexels-photo-1181359.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  'https://images.pexels.com/photos/3184311/pexels-photo-3184311.jpeg?auto=compress&cs=tinysrgb&w=1200'
+];
+
 // Helper to assign abstract bento sizing classes dynamically based on list index
 const getBentoClasses = (index: number) => {
   const patterns = [
@@ -127,6 +135,15 @@ export default function GalleryPage() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<typeof categories[number]>('All');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % heroImages.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Upload modal states
   const [isPostOpen, setIsPostOpen] = useState(false);
@@ -235,14 +252,14 @@ export default function GalleryPage() {
       <FadeIn>
         <div className="relative h-[480px] w-full overflow-hidden rounded-[24px] border border-border-soft bg-black shadow-2xl flex flex-col justify-between p-6 sm:p-10">
           {/* Background image Torii gate */}
-          <div className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-lighten pointer-events-none" style={{ backgroundImage: `url('https://images.pexels.com/photos/2041627/pexels-photo-2041627.jpeg?auto=compress&cs=tinysrgb&w=1200')` }} />
+          <div className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-lighten pointer-events-none transition-all duration-1000" style={{ backgroundImage: `url('${heroImages[heroIndex]}')` }} />
           <div className="absolute inset-0 bg-gradient-to-t from-navy-900 via-navy-900/20 to-transparent pointer-events-none" />
 
           {/* Top Info Header */}
           <div className="relative z-10 flex items-center justify-between">
             <span className="text-xs font-bold tracking-widest text-white/80 uppercase">CAMPUSOS GALLERY</span>
             {canPost && (
-              <Button leftIcon="Plus" onClick={() => setIsPostOpen(true)} className="bg-white text-navy hover:bg-white/90" size="sm" magnetic>
+              <Button leftIcon="Plus" onClick={() => setIsPostOpen(true)} variant="secondary" className="bg-white hover:bg-white/90 font-bold border-0 shadow-lift" size="sm" magnetic>
                 Post Moment
               </Button>
             )}
@@ -257,14 +274,21 @@ export default function GalleryPage() {
               </h1>
             </div>
             {/* Slide Index indicator */}
-            <div className="col-span-4 flex flex-col items-end text-white/50 text-[10px] tracking-widest font-bold">
-              <span>01</span>
-              <span>02</span>
-              <span className="text-white text-base font-extrabold flex items-center gap-2">
-                03 <span className="h-0.5 w-8 bg-white inline-block" />
-              </span>
-              <span>04</span>
-              <span>05</span>
+            <div className="col-span-4 flex flex-col items-end text-white/50 text-[10px] tracking-widest font-bold select-none">
+              {heroImages.map((_, i) => {
+                const isActive = heroIndex === i;
+                return (
+                  <span
+                    key={i}
+                    className={`transition-all duration-500 flex items-center gap-2 ${
+                      isActive ? 'text-white text-base font-extrabold' : 'text-white/40'
+                    }`}
+                  >
+                    {isActive && <span className="h-0.5 w-6 bg-white inline-block" />}
+                    0{i + 1}
+                  </span>
+                );
+              })}
             </div>
           </div>
 

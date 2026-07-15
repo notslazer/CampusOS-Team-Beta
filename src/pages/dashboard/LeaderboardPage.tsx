@@ -6,12 +6,15 @@ import { FadeIn, StaggerGroup, StaggerItem } from '../../components/ui/motion';
 import { mockLeaderboard } from '../../utils/mockData';
 
 import { useAuth } from '../../context/AuthContext';
+import { MemberProfileModal } from '../../components/ui/MemberProfileModal';
+import { useState } from 'react';
 
 const podiumIcons = [Trophy, Medal, Award];
 const podiumColors = ['#F59E0B', '#9CA3AF', '#CD7F32'];
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
+  const [selectedMemberName, setSelectedMemberName] = useState<string | null>(null);
   
   const leaderboardData = mockLeaderboard.map((p) => {
     if (p.rank === 7 && user) {
@@ -53,7 +56,12 @@ export default function LeaderboardPage() {
                 transition={{ delay: displayIdx * 0.1, type: 'spring', stiffness: 200 }}
                 className={displayIdx === 0 ? 'sm:-mt-4' : ''}
               >
-                <div className={`card-surface flex flex-col items-center p-6 text-center ${idx === 0 ? 'shadow-lift' : ''}`}>
+                <div
+                  onClick={() => setSelectedMemberName(p.name)}
+                  className={`card-surface flex flex-col items-center p-6 text-center cursor-pointer hover:border-navy/20 hover:shadow-lift transition-all ${
+                    idx === 0 ? 'shadow-lift ring-2 ring-navy/10' : ''
+                  }`}
+                >
                   <div className="relative">
                     <Avatar name={p.name} src={p.avatarUrl} size="xl" ring />
                     <span
@@ -84,7 +92,8 @@ export default function LeaderboardPage() {
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.06 }}
-                  className="flex items-center gap-4 py-3.5"
+                  onClick={() => setSelectedMemberName(p.name)}
+                  className="flex items-center gap-4 py-3.5 cursor-pointer hover:bg-cream-100/40 px-3 rounded-xl transition-all"
                 >
                   <span className="w-8 text-center text-sm font-bold text-ink-soft">{p.rank}</span>
                   <Avatar name={p.name} src={p.avatarUrl} size="md" />
@@ -102,6 +111,11 @@ export default function LeaderboardPage() {
           </div>
         </Card>
       </StaggerGroup>
+
+      <MemberProfileModal
+        memberName={selectedMemberName}
+        onClose={() => setSelectedMemberName(null)}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, ChevronDown, LogOut, UserRound, Settings, Menu, Search } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, UserRound, Settings, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useScrollPosition } from '../../hooks';
 import { Avatar } from '../ui/Avatar';
@@ -92,14 +92,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
         <div className="flex-1" />
 
-        {/* Search */}
-        <div className="relative hidden sm:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-          <input
-            placeholder="Search…"
-            className="h-9 w-48 rounded-xl border border-border-soft bg-white/70 pl-9 pr-3 text-sm text-ink placeholder:text-ink-soft/60 backdrop-blur transition-all duration-200 focus:w-64 focus:border-navy/30 focus:outline-none focus:ring-4 focus:ring-navy/10"
-          />
-        </div>
+
 
 
 
