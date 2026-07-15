@@ -78,6 +78,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavItem[]> = {
     { id: 'blogs',     label: 'Blogs',         to: '/app/blogs',               icon: 'PenLine'         },
     { id: 'gallery',   label: 'Gallery',       to: '/app/gallery',             icon: 'Images'          },
     { id: 'leaderboard', label: 'Leaderboard', to: '/app/leaderboard',         icon: 'Trophy'          },
+    { id: 'badges',    label: 'Badges',        to: '/app/badges',              icon: 'Award'           },
     { id: 'profile',   label: 'Profile',       to: '/app/profile',             icon: 'UserRound'       },
     { id: 'settings',  label: 'Settings',      to: '/app/settings',            icon: 'Settings'        },
   ],
@@ -92,6 +93,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavItem[]> = {
     { id: 'blogs',          label: 'Blogs',            to: '/app/blogs',             icon: 'PenLine'         },
     { id: 'gallery',        label: 'Gallery',          to: '/app/gallery',           icon: 'Images'          },
     { id: 'leaderboard',    label: 'Leaderboard',      to: '/app/leaderboard',       icon: 'Trophy'          },
+    { id: 'badges',         label: 'Badges',           to: '/app/badges',            icon: 'Award'           },
     { id: 'profile',        label: 'Profile',          to: '/app/profile',           icon: 'UserRound'       },
     { id: 'settings',       label: 'Settings',         to: '/app/settings',          icon: 'Settings'        },
   ],
@@ -106,6 +108,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavItem[]> = {
     { id: 'clubs',       label: 'Clubs',       to: '/app/clubs',           icon: 'Layers'          },
     { id: 'members',     label: 'Members',     to: '/app/members',         icon: 'Users'           },
     { id: 'announcements', label: 'Announcements', to: '/app/announcements', icon: 'Megaphone'       },
+    { id: 'badges',      label: 'Badges',      to: '/app/badges',          icon: 'Award'           },
     { id: 'settings',    label: 'Settings',    to: '/app/settings',        icon: 'Settings'        },
   ],
 };

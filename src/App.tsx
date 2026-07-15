@@ -19,6 +19,7 @@ import { MemberDashboard, LeadDashboard, FacultyDashboard } from './pages/dashbo
 import EventsPage from './pages/dashboard/EventsPage';
 import ProjectsPage from './pages/dashboard/ProjectsPage';
 import ProjectDetailsPage from './pages/dashboard/ProjectDetailsPage';
+import BadgesPage from './pages/dashboard/BadgesPage';
 import BlogsPage from './pages/dashboard/BlogsPage';
 import GalleryPage from './pages/dashboard/GalleryPage';
 import LeaderboardPage from './pages/dashboard/LeaderboardPage';
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="blogs"         element={<BlogsPage        />} />
               <Route path="gallery"       element={<GalleryPage      />} />
               <Route path="leaderboard"   element={<LeaderboardPage  />} />
+              <Route path="badges"        element={<BadgesPage       />} />
               <Route path="announcements" element={<AnnouncementsPage/>} />
               <Route path="profile"       element={<ProfilePage      />} />
               <Route path="settings"      element={<SettingsPage     />} />

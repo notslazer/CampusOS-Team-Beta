@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import { Avatar } from '../../components/ui/Avatar';
+import { MemberProfileModal } from '../../components/ui/MemberProfileModal';
 
 const statusTone = {
   active: 'success',
@@ -26,6 +27,9 @@ export default function ProjectsPage() {
   
   // Tab control
   const [activeTab, setActiveTab] = useState<'showcase' | 'tracker'>('showcase');
+
+  // Clickable member profile state
+  const [selectedMemberName, setSelectedMemberName] = useState<string | null>(null);
 
   // Showcase state
   const [showcaseSearch, setShowcaseSearch] = useState('');
@@ -369,7 +373,11 @@ export default function ProjectsPage() {
                   { name: 'Diya Sharma', role: 'UI/UX Designer', avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=128&h=128&fit=crop' },
                   { name: 'Sara Khan', role: 'Frontend Developer', avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=128&h=128&fit=crop' },
                 ].slice(0, selectedProject.members ? Math.min(selectedProject.members, 3) : 3).map((member) => (
-                  <div key={member.name} className="flex items-center justify-between rounded-xl border border-border-soft/60 bg-white p-3 shadow-sm">
+                  <div
+                    key={member.name}
+                    onClick={() => setSelectedMemberName(member.name)}
+                    className="flex items-center justify-between rounded-xl border border-border-soft/60 bg-white p-3 shadow-sm cursor-pointer hover:bg-cream-100/40 transition-colors"
+                  >
                     <div className="flex items-center gap-3">
                       <Avatar name={member.name} src={member.avatar} size="sm" />
                       <div>
@@ -434,6 +442,11 @@ export default function ProjectsPage() {
           </div>
         </Modal>
       )}
+
+      <MemberProfileModal
+        memberName={selectedMemberName}
+        onClose={() => setSelectedMemberName(null)}
+      />
     </div>
   );
 }
