@@ -160,15 +160,14 @@ export default function LoginPage({ role }: { role: Role }) {
 
   const floatingCards = {
     member:  [
-      { label: 'Hackathon Kickoff',    icon: CalendarDays, delay: 0.6, x: '8%',  y: '22%' },
+     
       
     ],
     lead:    [
-      { label: '24 Team Members',      icon: Users,        delay: 0.6, x: '8%',  y: '22%' },
-
+      
     ],
     faculty: [
-      { label: '12 Active Clubs',      icon: BarChart3,    delay: 0.6, x: '8%',  y: '22%' },
+      
       
     ],
   };
