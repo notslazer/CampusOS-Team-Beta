@@ -1,77 +1,150 @@
-import api from './api';
-import type { AuthSession, LoginPayload, RegisterPayload, User } from '../types';
-import { mockMemberUser, mockLeadUser, mockFacultyUser } from '../utils/mockData';
-import { sleep, uid } from '../utils/cn';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
 
-// Placeholder MERN API service.
-// All calls are simulated locally — swap VITE_API_URL for a real MERN server.
+import { auth } from "../firebase";
 
-const roleUserMap = {
-  member:  mockMemberUser,
-  lead:    mockLeadUser,
-  faculty: mockFacultyUser,
-};
+import type {
+  AuthSession,
+  LoginPayload,
+  RegisterPayload,
+  User,
+} from "../types";
 
 export const authService = {
-  async googleLogin(firebaseUser: any): Promise<AuthSession> {
-  const user: User = {
-    ...roleUserMap.member,
-    id: firebaseUser.uid,
-    name: firebaseUser.displayName || "Google User",
-    email: firebaseUser.email || "",
-    role: "member",
-  };
+  async login(
+    payload: LoginPayload
+  ): Promise<AuthSession> {
 
-  const token = await firebaseUser.getIdToken();
+    const credential =
+      await signInWithEmailAndPassword(
+        auth,
+        payload.email,
+        payload.password
+      );
 
-  return {
-    token,
-    user,
-  };
-},
-  async login(payload: LoginPayload): Promise<AuthSession> {
-    await sleep(1100);
-    try { await api.post('/auth/login', payload); } catch { /* no backend */ }
-    const user: User = { ...roleUserMap[payload.role], email: payload.email };
-    const token = `mock.${uid('tok')}.${btoa(payload.role)}`;
-    return { token, user };
-  },
+    const firebaseUser =
+      credential.user;
 
-  async register(payload: RegisterPayload): Promise<AuthSession> {
-    await sleep(1300);
-    try { await api.post('/auth/register', payload); } catch { /* no backend */ }
-    const base = roleUserMap[payload.role];
+    const token =
+      await firebaseUser.getIdToken();
+
     const user: User = {
-      ...base,
-      id: uid('u'),
-      name: payload.name,
-      email: payload.email,
-      department: payload.department,
-      year: payload.year,
-      role: payload.role,
+      id: firebaseUser.uid,
+
+      name:
+        firebaseUser.displayName ??
+        "Campus User",
+
+      email:
+        firebaseUser.email ?? "",
+
+      role:
+        payload.role,
+
+      department: "",
+
+      year: "",
     };
-    const token = `mock.${uid('tok')}.${btoa(payload.role)}`;
-    return { token, user };
+
+    return {
+      token,
+      user,
+    };
   },
 
-  async getProfile(): Promise<User> {
-    await sleep(700);
-    try {
-      const { data } = await api.get('/user/profile');
-      return data;
-    } catch {
-      return mockLeadUser;
-    }
+  async register(
+    payload: RegisterPayload
+  ): Promise<AuthSession> {
+
+    const credential =
+      await createUserWithEmailAndPassword(
+        auth,
+        payload.email,
+        payload.password
+      );
+
+    await updateProfile(
+      credential.user,
+      {
+        displayName:
+          payload.name,
+      }
+    );
+
+    const token =
+      await credential.user.getIdToken();
+
+    const user: User = {
+      id:
+        credential.user.uid,
+
+      name:
+        payload.name,
+
+      email:
+        payload.email,
+
+      role:
+        payload.role,
+
+      department:
+        payload.department,
+
+      year:
+        payload.year,
+    };
+
+    return {
+      token,
+      user,
+    };
   },
 
-  async getDashboard(): Promise<unknown> {
-    await sleep(700);
-    try {
-      const { data } = await api.get('/dashboard');
-      return data;
-    } catch {
-      return null;
-    }
+  async googleLogin(
+    firebaseUser: any
+  ): Promise<AuthSession> {
+
+    const token =
+      await firebaseUser.getIdToken();
+
+    const user: User = {
+      id:
+        firebaseUser.uid,
+
+      name:
+        firebaseUser.displayName ??
+        "Google User",
+
+      email:
+        firebaseUser.email ?? "",
+
+      role:
+        "member",
+
+      department: "",
+
+      year: "",
+    };
+
+    return {
+      token,
+      user,
+    };
+  },
+
+  async getProfile() {
+    throw new Error(
+      "Profile endpoint not connected."
+    );
+  },
+
+  async getDashboard() {
+    throw new Error(
+      "Dashboard endpoint not connected."
+    );
   },
 };
 

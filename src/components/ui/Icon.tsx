@@ -31,6 +31,8 @@ import {
   ChevronDown,
   Plus,
   Clock,
+  ClipboardList,
+
   MapPin,
   TrendingUp,
   Activity,
@@ -107,6 +109,7 @@ const map: Record<string, ComponentType<LucideProps>> = {
   ChevronDown,
   Plus,
   Clock,
+  ClipboardList,
   MapPin,
   TrendingUp,
   Activity,

@@ -1,5 +1,8 @@
 import { initializeApp } from "firebase/app";
 import {
+  getFirestore,
+} from "firebase/firestore";
+import {
   getAuth,
   GoogleAuthProvider,
   setPersistence,
@@ -22,3 +25,4 @@ export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence);
 
 export const googleProvider = new GoogleAuthProvider();
+export const db = getFirestore(app);

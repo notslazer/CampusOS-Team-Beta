@@ -1,5 +1,4 @@
-import { signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "../../firebase";
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -18,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { ROLES, APP_NAME, APP_TAGLINE } from '../../utils/constants';
 import type { Role } from '../../types';
+import GoogleButton from "../../components/auth/GoogleButton";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 const schema = z.object({
@@ -64,14 +64,7 @@ const roleConfig = {
 };
 
 // ─── Google SVG ──────────────────────────────────────────────────────────────
-const GoogleIcon = () => (
-  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
-    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z" />
-    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
-    <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" />
-    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38Z" />
-  </svg>
-);
+
 
 // ─── Floating card decorator ──────────────────────────────────────────────────
 function FloatingCard({ label, icon: Icon, delay, x, y }: { label: string; icon: typeof CalendarDays; delay: number; x: string; y: string }) {
@@ -96,7 +89,7 @@ export default function LoginPage({ role }: { role: Role }) {
   const RoleIcon = cfg.icon;
 
   const navigate = useNavigate();
-  const { login, googleLogin } = useAuth();
+  const { login } = useAuth();
   const { toast } = useToast();
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -106,43 +99,52 @@ export default function LoginPage({ role }: { role: Role }) {
     defaultValues: { email: '', password: '' },
   });
 
-  const onSubmit = async (values: FormValues) => {
-    setLoading(true);
-    try {
-      await login({ ...values, role, remember });
-      toast({ title: 'Welcome back!', description: `Signed in as ${r.title}`, variant: 'success' });
-      navigate(r.dashboardPath);
-    } catch (err: unknown) {
-      toast({ title: 'Sign in failed', description: (err as Error).message, variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleGoogleLogin = async () => {
+ const onSubmit = async (values: FormValues) => {
   setLoading(true);
 
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-
-    await googleLogin(result.user);
+    await login({
+      email: values.email,
+      password: values.password,
+      remember,
+      role: "member", // temporary until backend provides role
+    });
 
     toast({
-      title: "Welcome!",
-      description: `Signed in as ${result.user.displayName}`,
+      title: "Welcome Back!",
+      description: "Login successful.",
       variant: "success",
     });
 
-    navigate(r.dashboardPath);
+    navigate("/app");
 
-  } catch (err) {
-    console.error(err);
+  } catch (error: any) {
+
+    let message = "Invalid email or password.";
+
+    switch (error.code) {
+      case "auth/user-not-found":
+      case "auth/invalid-credential":
+      case "auth/wrong-password":
+        message = "Invalid email or password.";
+        break;
+
+      case "auth/too-many-requests":
+        message =
+          "Too many failed attempts. Please try again later.";
+        break;
+
+      case "auth/network-request-failed":
+        message =
+          "Network error. Please check your connection.";
+        break;
+    }
 
     toast({
-      title: "Google Sign-in Failed",
-      description: "Please try again.",
+      title: "Login Failed",
+      description: message,
       variant: "error",
     });
-
   } finally {
     setLoading(false);
   }
@@ -260,22 +262,7 @@ export default function LoginPage({ role }: { role: Role }) {
             <ArrowLeft className="h-4 w-4" /> Back to home
           </Link>
 
-          {/* Role switcher pills */}
-          <div className="mb-5 flex items-center gap-1.5 rounded-xl border border-border-soft bg-white/70 p-1 backdrop-blur">
-            {(['member', 'lead', 'faculty'] as Role[]).map((r) => (
-              <Link
-                key={r}
-                to={ROLES[r].loginPath}
-                className={`flex-1 rounded-lg py-1.5 text-center text-xs font-semibold capitalize transition-all ${
-                  role === r
-                    ? 'bg-navy text-white shadow-soft'
-                    : 'text-ink-soft hover:text-navy'
-                }`}
-              >
-                {r === 'faculty' ? 'Faculty' : r === 'lead' ? 'Lead' : 'Member'}
-              </Link>
-            ))}
-          </div>
+         
 
           {/* Glass card */}
           <motion.div
@@ -291,8 +278,13 @@ export default function LoginPage({ role }: { role: Role }) {
                   <RoleIcon className="h-6 w-6" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-ink">Sign in</h1>
-                  <p className="text-sm text-ink-soft">{r.title}</p>
+                  <h1 className="text-2xl font-bold text-ink">
+  Welcome Back 👋
+</h1>
+
+<p className="text-sm text-ink-soft">
+  Sign in to your CampusOS account
+</p>
                 </div>
               </div>
               <p className="mt-4 text-sm text-ink-soft">
@@ -320,13 +312,18 @@ export default function LoginPage({ role }: { role: Role }) {
 
               <div className="flex items-center justify-between">
                 <Checkbox checked={remember} onChange={setRemember} label="Remember me" />
-                <a href="#" className="text-sm font-medium text-navy hover:underline">
-                  Forgot password?
-                </a>
+                <Link
+  to="/forgot-password"
+  className="text-sm font-medium text-navy hover:underline"
+>
+  Forgot Password?
+</Link>
               </div>
 
               <Button type="submit" className="w-full" size="lg" loading={loading} magnetic>
-                {loading ? 'Signing in…' : `Sign in as ${r.title.split(' ')[0]}`}
+                {loading
+  ? "Signing In..."
+  : "Sign In"}
               </Button>
 
               {/* Divider */}
@@ -340,16 +337,7 @@ export default function LoginPage({ role }: { role: Role }) {
               </div>
 
               {/* Google button — UI only, MERN-ready */}
-              <button
-  type="button"
-  onClick={handleGoogleLogin}
-  disabled={loading}
-  className="flex w-full items-center justify-center gap-3 rounded-xl border border-border-soft bg-white px-5 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:border-navy hover:bg-gray-50 hover:shadow-card cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
->
-                <GoogleIcon />
-                {loading ? "Signing in..." : "Continue with Google"}
-                
-              </button>
+             <GoogleButton />
             </form>
           </motion.div>
 
@@ -362,9 +350,12 @@ export default function LoginPage({ role }: { role: Role }) {
               className="mt-6 text-center text-sm text-ink-soft"
             >
               New to {APP_NAME}?{' '}
-              <Link to={`/signup/${role}`} className="font-semibold text-navy hover:underline">
-                Create an account
-              </Link>
+              <Link
+  to="/signup"
+  className="font-semibold text-navy hover:underline"
+>
+  Create an account
+</Link>
             </motion.p>
           </AnimatePresence>
         </div>

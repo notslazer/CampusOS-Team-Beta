@@ -1,15 +1,15 @@
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ToastViewport } from './components/ui/Toast';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './layouts/AppLayout';
-import type { Role } from './types';
-
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import SignupPage from "./pages/auth/SignupPage";
 // Pages
 import Landing from './pages/Landing';
 import LoginPage from './pages/auth/LoginPage';
-import SignupPage from './pages/auth/SignupPage';
+
 
 // Dashboards
 import Dashboard from './pages/dashboard/Dashboard';
@@ -45,6 +45,10 @@ export default function App() {
 
             {/* Public */}
             <Route path="/" element={<Landing />} />
+            <Route
+  path="/login"
+  element={<LoginPage role="member" />}
+/>
 
             <Route
               path="/login/member"
@@ -62,9 +66,13 @@ export default function App() {
             />
 
             <Route
-              path="/signup/:role"
-              element={<SignupWrapper />}
-            />
+    path="/signup"
+    element={<SignupPage />}
+/>
+<Route
+  path="/forgot-password"
+  element={<ForgotPassword />}
+/>
 
             {/* Legacy Redirects */}
 
@@ -230,14 +238,3 @@ export default function App() {
   );
 }
 
-function SignupWrapper() {
-  const { role } = useParams<{ role: string }>();
-
-  const validRole = (
-    ['member', 'lead', 'faculty'].includes(role ?? '')
-      ? role
-      : 'member'
-  ) as Role;
-
-  return <SignupPage role={validRole} />;
-}
