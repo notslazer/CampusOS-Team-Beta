@@ -129,16 +129,28 @@ export default function Landing() {
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.16, type: 'spring', stiffness: 180, damping: 22 }}
-          className="mx-auto mt-6 max-w-4xl text-balance text-5xl font-bold leading-[1.06] tracking-tight text-ink sm:text-7xl"
-        >One Platform.
-<span className="block bg-gradient-to-r from-navy via-navy-400 to-[#8a6d3b] bg-clip-text text-transparent">
-Every Club.
-Every Achievement.
-</span>
-        </motion.h1>
+  initial={{ opacity: 0, y: 24 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{
+    delay: 0.16,
+    type: "spring",
+    stiffness: 180,
+    damping: 22,
+  }}
+  className="mx-auto mt-6 max-w-4xl text-balance text-5xl font-bold leading-[1.06] tracking-tight sm:text-7xl"
+>
+  <span className="block text-ink">
+    One Platform.
+  </span>
+
+  <span className="block text-navy">
+    Every Club.
+  </span>
+
+  <span className="block text-[#5f6673]">
+    Every Achievement.
+  </span>
+</motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}

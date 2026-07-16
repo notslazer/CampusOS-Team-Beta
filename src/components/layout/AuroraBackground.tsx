@@ -3,9 +3,17 @@ import { motion } from 'framer-motion';
 // Decorative animated aurora blobs used behind auth + landing screens.
 export function AuroraBackground({ variant = 'light' }: { variant?: 'light' | 'dark' }) {
   const colors =
-    variant === 'dark'
-      ? ['rgba(25,55,109,0.35)', 'rgba(15,33,68,0.3)', 'rgba(220,197,165,0.18)']
-      : ['rgba(25,55,109,0.14)', 'rgba(220,197,165,0.22)', 'rgba(234,219,200,0.3)'];
+  variant === 'dark'
+    ? [
+        'rgba(25,55,109,0.18)',
+        'rgba(15,33,68,0.15)',
+        'rgba(220,197,165,0.10)',
+      ]
+    : [
+        'rgba(255,255,255,0)',
+        'rgba(220,197,165,0.12)',
+        'rgba(234,219,200,0.18)',
+      ];
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {colors.map((c, i) => (
