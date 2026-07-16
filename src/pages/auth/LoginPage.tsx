@@ -167,7 +167,7 @@ export default function LoginPage({ role }: { role: Role }) {
       
     ],
     faculty: [
-      
+      { label: '12 Active Clubs',      icon: BarChart3,    delay: 0.6, x: '8%',  y: '22%' },
       
     ],
   };
