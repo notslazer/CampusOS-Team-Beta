@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -51,15 +51,47 @@ export default function MemberDashboard() {
   const myRank = isDemo ? '7' : '-';
   const myPoints = isDemo ? useCountUp(980, 1400, true) : 0;
 
-  const stats = isDemo ? mockMemberStats : [
-    { id: 'ms1', label: 'Events Attended', value: 0, icon: 'CalendarDays', accent: 'navy' as const },
-    { id: 'ms2', label: 'Leaderboard Rank', value: 0, icon: 'Trophy', accent: 'warning' as const },
-    { id: 'ms3', label: 'Club Points', value: 0, suffix: 'pts', icon: 'Star', accent: 'sand' as const },
-    { id: 'ms4', label: 'Certificates', value: 0, icon: 'Award', accent: 'success' as const },
-  ];
+  const [registeredList, setRegisteredList] = useState<string[]>(() => {
+    const saved = localStorage.getItem('registeredEvents');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    const loadRegs = () => {
+      const saved = localStorage.getItem('registeredEvents');
+      setRegisteredList(saved ? JSON.parse(saved) : []);
+    };
+    window.addEventListener('campusos_event_registered', loadRegs);
+    return () => window.removeEventListener('campusos_event_registered', loadRegs);
+  }, []);
 
   const todayEvents = isDemo ? mockTodayEvents : [];
-  const myRegisteredEvents = isDemo ? mockMyRegisteredEvents : [];
+  
+  const myRegisteredEvents = isDemo
+    ? [
+        ...mockMyRegisteredEvents,
+        ...events.filter(
+          (e: any) =>
+            registeredList.includes(String(e.id || e.title)) &&
+            !mockMyRegisteredEvents.some((me) => me.id === e.id || me.title === e.title)
+        ),
+      ]
+    : events.filter((e: any) => registeredList.includes(String(e.id || e.title)));
+
+  const stats = isDemo
+    ? [
+        { id: 'ms1', label: 'Events Attended', value: 14 + (myRegisteredEvents.length - mockMyRegisteredEvents.length), icon: 'CalendarDays', accent: 'navy' as const },
+        { id: 'ms2', label: 'Leaderboard Rank', value: 7, icon: 'Trophy', accent: 'warning' as const },
+        { id: 'ms3', label: 'Club Points', value: 980 + (myRegisteredEvents.length - mockMyRegisteredEvents.length) * 50, suffix: 'pts', icon: 'Star', accent: 'sand' as const },
+        { id: 'ms4', label: 'Certificates', value: 3, icon: 'Award', accent: 'success' as const },
+      ]
+    : [
+        { id: 'ms1', label: 'Events Attended', value: myRegisteredEvents.length, icon: 'CalendarDays', accent: 'navy' as const },
+        { id: 'ms2', label: 'Leaderboard Rank', value: 0, icon: 'Trophy', accent: 'warning' as const },
+        { id: 'ms3', label: 'Club Points', value: myPoints, suffix: 'pts', icon: 'Star', accent: 'sand' as const },
+        { id: 'ms4', label: 'Certificates', value: activeUser?.certificates?.length ?? 0, icon: 'Award', accent: 'success' as const },
+      ];
+
   const blogPosts = isDemo ? mockBlogPosts : [];
   const leaderboard = isDemo ? mockLeaderboard : [];
 
