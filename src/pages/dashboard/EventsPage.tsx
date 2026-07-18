@@ -10,6 +10,23 @@ import { EventActionModal, type EventActionDetails } from '../../components/even
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
+import api from '../../services/api';
+
+interface EventCardItem extends EventActionDetails {
+  id: string | number;
+  title: string;
+  date?: string;
+  time: string;
+  location: string;
+  attendees: number;
+  status?: string;
+  description?: string;
+  organizer?: string;
+  registrationDeadline?: string;
+  maxParticipants?: number;
+  poster?: string;
+  tag?: string;
+}
 
 const statusTone = {
   upcoming: 'navy',
@@ -18,6 +35,21 @@ const statusTone = {
 } as const;
 
 const filters = ['All', 'Upcoming', 'Live', 'Completed'];
+
+const normalizeEvent = (item: Record<string, unknown>): EventCardItem => ({
+  id: String((item._id as string | undefined) || (item.id as string | undefined) || `event-${Date.now()}`),
+  title: String((item.title as string | undefined) || (item.name as string | undefined) || 'Untitled Event'),
+  date: String((item.date as string | undefined) || (item.startDate as string | undefined) || ''),
+  time: String((item.time as string | undefined) || (item.startTime as string | undefined) || 'TBD'),
+  location: String((item.venue as string | undefined) || (item.location as string | undefined) || 'TBD'),
+  attendees: Number((item.maxParticipants as number | undefined) || (item.attendees as number | undefined) || 0),
+  status: String((item.status as string | undefined) || ((item.isActive as boolean | undefined) ? 'live' : 'upcoming')),
+  description: String((item.description as string | undefined) || ''),
+  organizer: String((item.organizer as string | undefined) || ''),
+  registrationDeadline: String((item.registrationDeadline as string | undefined) || ''),
+  maxParticipants: Number((item.maxParticipants as number | undefined) || 0),
+  poster: String((item.poster as string | undefined) || ''),
+});
 
 export default function EventsPage() {
   const { toast } = useToast();
@@ -31,6 +63,7 @@ export default function EventsPage() {
   });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [registeredList, setRegisteredList] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadRegs = () => {
@@ -43,40 +76,121 @@ export default function EventsPage() {
     return () => window.removeEventListener('campusos_event_registered', loadRegs);
   }, []);
 
-  const handleCreateEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const title = formData.get('title') as string;
-    const date = formData.get('date') as string;
-    const time = formData.get('time') as string;
-    const location = formData.get('location') as string;
-    const tag = formData.get('tag') as string;
+  useEffect(() => {
+    let mounted = true;
 
-    if (!title || !date || !time || !location) return;
+    const loadEvents = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get('/events');
+        const payload = response.data;
+        const data = Array.isArray(payload) ? payload : payload?.events || payload?.data || [];
 
-    const newEv = {
-      id: 'ev_' + Date.now(),
-      title,
-      date,
-      time,
-      location,
-      attendees: 0,
-      status: 'upcoming' as const,
-      tag: tag || 'General',
+        if (mounted) {
+          const normalized = data.map(normalizeEvent);
+          setEvents(normalized);
+          localStorage.setItem('campusos_events', JSON.stringify(normalized));
+        }
+      } catch {
+        if (mounted) {
+          const fallback = Array.isArray(mockEvents) ? mockEvents : [];
+          setEvents(fallback);
+          localStorage.setItem('campusos_events', JSON.stringify(fallback));
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
     };
 
-    const updated = [newEv, ...events];
-    setEvents(updated);
-    localStorage.setItem('campusos_events', JSON.stringify(updated));
-    setIsCreateOpen(false);
-    toast({
-      title: 'Event Created Successfully',
-      description: `"${title}" has been scheduled for ${date}.`,
-      variant: 'success',
-    });
+    void loadEvents();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const title = (formData.get('title') as string)?.trim();
+    const description = (formData.get('description') as string)?.trim();
+    const date = (formData.get('date') as string)?.trim();
+    const time = (formData.get('time') as string)?.trim();
+    const venue = (formData.get('venue') as string)?.trim();
+    const organizer = (formData.get('organizer') as string)?.trim();
+    const registrationDeadline = (formData.get('registrationDeadline') as string)?.trim();
+    const maxParticipants = Number(formData.get('maxParticipants') || 0);
+    const poster = (formData.get('poster') as string)?.trim();
+
+    if (!title || !date || !time || !venue || !organizer) return;
+
+    const payload = {
+      title,
+      description: description || 'No description provided.',
+      date,
+      time,
+      venue,
+      organizer,
+      registrationDeadline: registrationDeadline || undefined,
+      maxParticipants: maxParticipants || undefined,
+      poster: poster || undefined,
+    };
+
+    try {
+      const response = await api.post('/events', payload);
+      const createdEvent = normalizeEvent(response.data?.event || response.data || payload);
+      const updated = [createdEvent, ...events];
+      setEvents(updated);
+      localStorage.setItem('campusos_events', JSON.stringify(updated));
+      setIsCreateOpen(false);
+      toast({
+        title: 'Event Created Successfully',
+        description: `"${createdEvent.title}" has been scheduled for ${createdEvent.date}.`,
+        variant: 'success',
+      });
+    } catch {
+      const localEvent = normalizeEvent({ ...payload, id: `local-${Date.now()}`, status: 'upcoming' });
+      const updated = [localEvent, ...events];
+      setEvents(updated);
+      localStorage.setItem('campusos_events', JSON.stringify(updated));
+      setIsCreateOpen(false);
+      toast({
+        title: 'Event Saved Locally',
+        description: 'The event was queued locally because the backend endpoint was unavailable.',
+        variant: 'warning',
+      });
+    }
   };
 
-  const filtered = events.filter((e: any) => {
+  const handleRegister = async (event: EventActionDetails) => {
+    const eventKey = String(event.id || event.title);
+    const registrations = JSON.parse(localStorage.getItem('registeredEvents') || '[]');
+
+    if (!registrations.includes(eventKey)) {
+      registrations.push(eventKey);
+      localStorage.setItem('registeredEvents', JSON.stringify(registrations));
+      setRegisteredList(registrations);
+      window.dispatchEvent(new Event('campusos_event_registered'));
+    }
+
+    try {
+      await api.post(`/events/${event.id}/register`, { eventId: event.id });
+      toast({
+        title: 'Registration Successful',
+        description: `You are now registered for ${event.title}.`,
+        variant: 'success',
+      });
+    } catch {
+      toast({
+        title: 'Registration Saved Locally',
+        description: 'The registration was saved in your browser while the backend was unavailable.',
+        variant: 'warning',
+      });
+    }
+  };
+
+  const filtered = events.filter((e: EventCardItem) => {
     const matchesQuery = e.title.toLowerCase().includes(query.toLowerCase());
     const matchesFilter = filter === 'All' || e.status === filter.toLowerCase();
     return matchesQuery && matchesFilter;
@@ -120,8 +234,14 @@ export default function EventsPage() {
         </div>
       </FadeIn>
 
+      {isLoading && (
+        <div className="rounded-2xl border border-dashed border-border-soft bg-white/70 p-8 text-center text-sm text-ink-soft">
+          Loading events from the backend...
+        </div>
+      )}
+
       <StaggerGroup className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((e: any) => (
+        {filtered.map((e: EventCardItem) => (
           <StaggerItem key={e.id}>
             <motion.div whileHover={{ y: -6 }} className="card-surface group overflow-hidden transition-shadow hover:shadow-lift">
               <div className="relative h-32 overflow-hidden bg-gradient-to-br from-navy to-navy-400">
@@ -130,12 +250,12 @@ export default function EventsPage() {
                   <Badge tone={statusTone[e.status as keyof typeof statusTone]} dot>{e.status}</Badge>
                 </div>
                 <div className="absolute bottom-4 right-4 flex h-12 w-12 flex-col items-center justify-center rounded-xl bg-white/15 text-white backdrop-blur">
-                  <span className="text-[0.65rem] font-medium leading-none">{e.date.split(' ')[0]}</span>
-                  <span className="text-lg font-bold leading-tight">{e.date.split(' ')[1]}</span>
+                  <span className="text-[0.65rem] font-medium leading-none">{(e.date || '').split(' ')[0]}</span>
+                  <span className="text-lg font-bold leading-tight">{(e.date || '').split(' ')[1] || 'TBD'}</span>
                 </div>
               </div>
               <div className="p-5">
-                <Badge tone="sand">{e.tag}</Badge>
+                <Badge tone="sand">{e.tag || 'General'}</Badge>
                 <h3 className="mt-2.5 text-base font-semibold text-ink">{e.title}</h3>
                 <div className="mt-3 space-y-1.5 text-xs text-ink-soft">
                   <p className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {e.time}</p>
@@ -172,7 +292,11 @@ export default function EventsPage() {
           </StaggerItem>
         ))}
       </StaggerGroup>
-      <EventActionModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <EventActionModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onRegister={handleRegister}
+      />
 
       {isCreateOpen && (
         <Modal

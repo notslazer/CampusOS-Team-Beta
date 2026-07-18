@@ -1,110 +1,66 @@
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  updateProfile,
-} from "firebase/auth";
-
-import { auth } from "../firebase";
-
+import type { UserCredential } from "firebase/auth";
 import type {
   AuthSession,
   LoginPayload,
   RegisterPayload,
   User,
 } from "../types";
+import { api } from "./api";
+
+export const loginUser = async (
+  credentials: Pick<LoginPayload, "email" | "password">
+): Promise<AuthSession> => {
+  try {
+    const { data } = await api.post("/auth/login", credentials);
+    return data;
+  } catch (error) {
+    console.error("Login failed", error);
+    throw error;
+  }
+};
+
+export const registerUser = async (userData: {
+  fullName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  department: string;
+  year: string;
+}): Promise<AuthSession> => {
+  try {
+    const { data } = await api.post("/auth/register", userData);
+    return data;
+  } catch (error) {
+    console.error("Registration failed", error);
+    throw error;
+  }
+};
 
 export const authService = {
   async login(
     payload: LoginPayload
   ): Promise<AuthSession> {
-
-    const credential =
-      await signInWithEmailAndPassword(
-        auth,
-        payload.email,
-        payload.password
-      );
-
-    const firebaseUser =
-      credential.user;
-
-    const token =
-      await firebaseUser.getIdToken();
-
-    const user: User = {
-      id: firebaseUser.uid,
-
-      name:
-        firebaseUser.displayName ??
-        "Campus User",
-
-      email:
-        firebaseUser.email ?? "",
-
-      role:
-        payload.role,
-
-      department: "",
-
-      year: "",
-    };
-
-    return {
-      token,
-      user,
-    };
+    return loginUser({
+      email: payload.email,
+      password: payload.password,
+    });
   },
 
   async register(
     payload: RegisterPayload
   ): Promise<AuthSession> {
-
-    const credential =
-      await createUserWithEmailAndPassword(
-        auth,
-        payload.email,
-        payload.password
-      );
-
-    await updateProfile(
-      credential.user,
-      {
-        displayName:
-          payload.name,
-      }
-    );
-
-    const token =
-      await credential.user.getIdToken();
-
-    const user: User = {
-      id:
-        credential.user.uid,
-
-      name:
-        payload.name,
-
-      email:
-        payload.email,
-
-      role:
-        payload.role,
-
-      department:
-        payload.department,
-
-      year:
-        payload.year,
-    };
-
-    return {
-      token,
-      user,
-    };
+    return registerUser({
+      fullName: payload.name,
+      email: payload.email,
+      password: payload.password,
+      confirmPassword: payload.password,
+      department: payload.department,
+      year: payload.year,
+    });
   },
 
   async googleLogin(
-    firebaseUser: any
+    firebaseUser: UserCredential["user"]
   ): Promise<AuthSession> {
 
     const token =

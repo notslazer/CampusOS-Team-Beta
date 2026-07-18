@@ -36,7 +36,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>(getNotifications);
 
   const role = user?.role ?? 'member';
-  const navItems = NAV_ITEMS_BY_ROLE[role];
+  const navItems = NAV_ITEMS_BY_ROLE[role] ?? []; 
   const current = navItems.find((n) =>
     location.pathname === n.to ||
     (n.to !== '/app/member' && n.to !== '/app/lead' && n.to !== '/app/faculty' && location.pathname.startsWith(n.to))

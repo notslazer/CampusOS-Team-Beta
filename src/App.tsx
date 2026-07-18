@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ToastViewport } from './components/ui/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './layouts/AppLayout';
 
@@ -10,6 +11,7 @@ import Landing from './pages/Landing';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ForgotPassword from './pages/auth/ForgotPassword';
+import ForbiddenPage from './pages/ForbiddenPage';
 
 // Dashboards
 import Dashboard from './pages/dashboard/Dashboard';
@@ -38,63 +40,67 @@ import PollsPage from './pages/polls/PollsPage';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* ── Public ───────────────────────────────── */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<LoginPage role="member" />} />
-            <Route path="/login/member"  element={<LoginPage role="member"  />} />
-            <Route path="/login/lead"    element={<LoginPage role="lead"    />} />
-            <Route path="/login/faculty" element={<LoginPage role="faculty" />} />
-            <Route path="/signup"  element={<SignupPage />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+    <ErrorBoundary>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* ── Public ───────────────────────────────── */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<LoginPage role="member" />} />
+              <Route path="/login/member"  element={<LoginPage role="member"  />} />
+              <Route path="/login/lead"    element={<LoginPage role="lead"    />} />
+              <Route path="/login/faculty" element={<LoginPage role="faculty" />} />
+              <Route path="/signup"  element={<SignupPage />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/403" element={<ForbiddenPage />} />
 
-            {/* ── Legacy role redirect helpers ─────────── */}
-            <Route path="/member/dashboard"  element={<ProtectedRoute><Navigate to="/app/member"  replace /></ProtectedRoute>} />
-            <Route path="/lead/dashboard"    element={<ProtectedRoute><Navigate to="/app/lead"    replace /></ProtectedRoute>} />
-            <Route path="/faculty/dashboard" element={<ProtectedRoute><Navigate to="/app/faculty" replace /></ProtectedRoute>} />
+              {/* ── Legacy role redirect helpers ─────────── */}
+              <Route path="/member/dashboard"  element={<ProtectedRoute><Navigate to="/app/member"  replace /></ProtectedRoute>} />
+              <Route path="/lead/dashboard"    element={<ProtectedRoute><Navigate to="/app/lead"    replace /></ProtectedRoute>} />
+              <Route path="/faculty/dashboard" element={<ProtectedRoute><Navigate to="/app/faculty" replace /></ProtectedRoute>} />
 
-            {/* ── Protected App shell ───────────────────── */}
-            <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              {/* Default → role-aware redirect */}
-              <Route index element={<Dashboard />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              {/* ── Protected App shell ───────────────────── */}
+              <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                {/* Default → role-aware redirect */}
+                <Route index element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
 
-              {/* Role-specific dashboards */}
-              <Route path="member"  element={<MemberDashboard  />} />
-              <Route path="lead"    element={<LeadDashboard    />} />
-              <Route path="faculty" element={<FacultyDashboard />} />
+                {/* Role-specific dashboards */}
+                <Route path="member"  element={<ProtectedRoute allowedRoles={['member', 'lead', 'faculty']}><MemberDashboard /></ProtectedRoute>} />
+                <Route path="lead"    element={<ProtectedRoute allowedRoles={['lead']}><LeadDashboard /></ProtectedRoute>} />
+                <Route path="faculty" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDashboard /></ProtectedRoute>} />
 
-              {/* Shared pages */}
-              <Route path="events"        element={<EventsPage       />} />
-              <Route path="projects"      element={<ProjectsPage     />} />
-              <Route path="projects/:id"  element={<ProjectDetailsPage />} />
-              <Route path="blogs"         element={<BlogsPage        />} />
-              <Route path="gallery"       element={<GalleryPage      />} />
-              <Route path="leaderboard"   element={<LeaderboardPage  />} />
-              <Route path="badges"        element={<BadgesPage       />} />
-              <Route path="announcements" element={<AnnouncementsPage/>} />
-              <Route path="profile"       element={<ProfilePage      />} />
-              <Route path="settings"      element={<SettingsPage     />} />
-              <Route path="planner"       element={<CampusPlanner    />} />
-              <Route path="polls"         element={<PollsPage        />} />
+                {/* Shared pages */}
+                <Route path="events"        element={<EventsPage       />} />
+                <Route path="projects"      element={<ProjectsPage     />} />
+                <Route path="projects/:id"  element={<ProjectDetailsPage />} />
+                <Route path="blogs"         element={<BlogsPage        />} />
+                <Route path="gallery"       element={<GalleryPage      />} />
+                <Route path="leaderboard"   element={<LeaderboardPage  />} />
+                <Route path="badges"        element={<BadgesPage       />} />
+                <Route path="announcements" element={<AnnouncementsPage/>} />
+                <Route path="profile"       element={<ProfilePage      />} />
+                <Route path="settings"      element={<SettingsPage     />} />
+                <Route path="planner"       element={<CampusPlanner    />} />
+                <Route path="polls"         element={<PollsPage        />} />
 
-              {/* Faculty-only routes */}
-              <Route path="approvals"  element={<ApprovalsPage />} />
-              <Route path="analytics"  element={<AnalyticsPage />} />
-              <Route path="reports"    element={<ReportsPage />} />
-              <Route path="clubs"      element={<ClubsPage />} />
-              <Route path="members"    element={<MembersPage />} />
-            </Route>
+                {/* Faculty-only routes */}
+                <Route path="approvals"  element={<ProtectedRoute allowedRoles={['faculty']}><ApprovalsPage /></ProtectedRoute>} />
+                <Route path="analytics"  element={<ProtectedRoute allowedRoles={['faculty']}><AnalyticsPage /></ProtectedRoute>} />
+                <Route path="reports"    element={<ProtectedRoute allowedRoles={['faculty']}><ReportsPage /></ProtectedRoute>} />
+                <Route path="clubs"      element={<ProtectedRoute allowedRoles={['faculty']}><ClubsPage /></ProtectedRoute>} />
+                <Route path="members"    element={<ProtectedRoute allowedRoles={['lead', 'faculty']}><MembersPage /></ProtectedRoute>} />
+              </Route>
 
-            {/* ── Catch-all ─────────────────────────────── */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          <ToastViewport />
-        </BrowserRouter>
-      </ToastProvider>
-    </AuthProvider>
+              {/* ── Catch-all ─────────────────────────────── */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <ToastViewport />
+          </BrowserRouter>
+        </ToastProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
+

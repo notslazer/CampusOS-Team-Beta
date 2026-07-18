@@ -97,12 +97,24 @@ const steps = [
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { register: registerUser } = useAuth();
+  const { register: signup } = useAuth();
   const { toast } = useToast();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Partial<Step1>>({});
+
+  const getDashboardPath = (userRole?: string) => {
+    switch (userRole) {
+      case 'lead':
+        return '/app/lead';
+      case 'faculty':
+      case 'admin':
+        return '/app/faculty';
+      default:
+        return '/app/member';
+    }
+  };
 
   const s1 = useForm<Step1>({
     resolver: zodResolver(step1Schema),
@@ -145,13 +157,15 @@ export default function SignupPage() {
     }
 
     try {
-      await registerUser({
+      const numericYear = parseInt(data.year?.toString() || "0");
+
+      const session = await signup({
         name: data.name!,
         email: data.email!,
         department: data.department!,
-        year: data.year!,
+        year: numericYear,
         password: values.password,
-        role: "member", // Every new account becomes a member
+        role: "member",
       });
 
       setStep(3);
@@ -162,33 +176,16 @@ export default function SignupPage() {
         variant: "success",
       });
 
+      const targetPath = getDashboardPath(session.user?.role ?? "member");
+
       setTimeout(() => {
-        navigate("/login/member");
+        navigate(targetPath);
       }, 1600);
 
-    } catch (error: any) {
-      let message = "Unable to create account.";
-
-      switch (error.code) {
-        case "auth/email-already-in-use":
-          message = "An account already exists with this email.";
-          break;
-
-        case "auth/invalid-email":
-          message = "Please enter a valid email.";
-          break;
-
-        case "auth/weak-password":
-          message = "Password should be at least 8 characters.";
-          break;
-
-        case "auth/network-request-failed":
-          message = "Network error. Check your internet connection.";
-          break;
-
-        default:
-          message = error.message || message;
-      }
+    } catch (error: unknown) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "Unable to create account.";
 
       toast({
         title: "Registration Failed",
@@ -390,6 +387,7 @@ export default function SignupPage() {
                 type="button"
                 variant="secondary"
                 onClick={() => setStep(1)}
+                disabled={loading}
               >
                 Back
               </Button>
@@ -397,7 +395,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 loading={loading}
-                disabled={!s2.watch("terms")}
+                disabled={!s2.watch("terms") || loading}
                 className="flex-1"
               >
                 {loading ? "Creating..." : "Create Account"}

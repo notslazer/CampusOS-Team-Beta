@@ -1,29 +1,44 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Award, UserX, UserCheck, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { UserX, UserCheck, AlertCircle } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Avatar } from '../../components/ui/Avatar';
-import { FadeIn, StaggerGroup, StaggerItem } from '../../components/ui/motion';
+import { FadeIn } from '../../components/ui/motion';
 import { useToast } from '../../context/ToastContext';
 import { mockClubMembers } from '../../utils/mockData';
 import { MemberProfileModal } from '../../components/ui/MemberProfileModal';
 import { Modal } from '../../components/ui/Modal';
 import { DEPARTMENTS, YEARS } from '../../utils/constants';
 import { Dropdown } from '../../components/ui/Dropdown';
+import { api } from '../../services/api';
+
+interface MemberRecord {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  year: string;
+  club: string;
+  points: number;
+  status: string;
+  joinedDate: string;
+  avatarUrl?: string;
+}
 
 export default function MembersPage() {
   const { toast } = useToast();
+  const [, setLoading] = useState(false);
 
-  const [members, setMembers] = useState(() => {
+  const [members, setMembers] = useState<MemberRecord[]>(() => {
     const saved = localStorage.getItem('campusos_club_members');
-    return saved ? JSON.parse(saved) : mockClubMembers;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [query, setQuery] = useState('');
   const [filterDept, setFilterDept] = useState('All');
-  const [selectedMemberName, setSelectedMemberName] = useState<string | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
 
   // Form states
@@ -35,9 +50,103 @@ export default function MembersPage() {
   const [club, setClub] = useState('Developers Club');
   const [points, setPoints] = useState('0');
 
+  const normalizeMembers = (payload: unknown): MemberRecord[] => {
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { members?: unknown })?.members)
+        ? (payload as { members: unknown[] }).members
+        : Array.isArray((payload as { data?: unknown })?.data)
+          ? (payload as { data: unknown[] }).data
+          : [];
+
+    return list.map((member: Record<string, unknown>, index: number) => {
+      const fullName = (member.fullName as string | undefined) || (member.name as string | undefined) || [(member.firstName as string | undefined), (member.lastName as string | undefined)].filter(Boolean).join(' ');
+      return {
+        id: (member.id as string | undefined) || (member._id as string | undefined) || (member.userId as string | undefined) || `member-${index}`,
+        name: fullName || 'Unnamed Member',
+        email: (member.email as string | undefined) || '',
+        role: (member.role as string | undefined) || (member.position as string | undefined) || (member.title as string | undefined) || 'member',
+        department: (member.department as string | undefined) || '',
+        year: (member.year as string | undefined) || '',
+        club: (member.club as string | undefined) || (member.clubName as string | undefined) || (member.assignedClub as string | undefined) || 'Unassigned',
+        points: Number((member.points as number | undefined) ?? (member.pointsEarned as number | undefined) ?? 0),
+        status: (member.status as string | undefined) || 'active',
+        joinedDate: (member.joinedDate as string | undefined) || (member.createdAt as string | undefined) || '—',
+        avatarUrl: member.avatarUrl as string | undefined,
+      };
+    });
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    const loadMembers = async () => {
+      setLoading(true);
+
+      try {
+        const { data } = await api.get('/members');
+        const nextMembers = normalizeMembers(data);
+
+        if (!active) return;
+
+        if (nextMembers.length > 0) {
+          setMembers(nextMembers);
+          localStorage.setItem('campusos_club_members', JSON.stringify(nextMembers));
+        } else {
+          const fallback = JSON.parse(localStorage.getItem('campusos_club_members') || 'null') || mockClubMembers.map((member) => ({
+            id: member.id,
+            name: member.name,
+            email: '',
+            role: member.role,
+            department: member.department,
+            year: '',
+            club: '',
+            points: member.points,
+            status: member.status,
+            joinedDate: member.joinedDate,
+            avatarUrl: member.avatarUrl,
+          }));
+          setMembers(fallback);
+        }
+      } catch (error) {
+        if (!active) return;
+
+        const fallback = JSON.parse(localStorage.getItem('campusos_club_members') || 'null') || mockClubMembers.map((member) => ({
+          id: member.id,
+          name: member.name,
+          email: '',
+          role: member.role,
+          department: member.department,
+          year: '',
+          club: '',
+          points: member.points,
+          status: member.status,
+          joinedDate: member.joinedDate,
+          avatarUrl: member.avatarUrl,
+        }));
+        setMembers(fallback);
+
+        const message = error instanceof Error ? error.message : 'Unable to load members right now.';
+        toast({
+          title: 'Members Unavailable',
+          description: message,
+          variant: 'warning',
+        });
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadMembers();
+
+    return () => {
+      active = false;
+    };
+  }, [toast]);
+
   const handleStatusToggle = (id: string, name: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    const updated = members.map((m: any) => (m.id === id ? { ...m, status: nextStatus } : m));
+    const updated = members.map((m) => (m.id === id ? { ...m, status: nextStatus } : m));
     setMembers(updated);
     localStorage.setItem('campusos_club_members', JSON.stringify(updated));
 
@@ -115,13 +224,13 @@ export default function MembersPage() {
     });
   };
 
-  const filtered = members.filter((m: any) => {
+  const filtered = members.filter((m) => {
     const matchesQuery = m.name.toLowerCase().includes(query.toLowerCase()) || m.role.toLowerCase().includes(query.toLowerCase());
     const matchesDept = filterDept === 'All' || m.department === filterDept;
     return matchesQuery && matchesDept;
   });
 
-  const depts = ['All', ...Array.from(new Set(members.map((m: any) => m.department)))];
+  const depts = ['All', ...Array.from(new Set(members.map((m) => m.department)))];
 
   return (
     <div className="space-y-8">
@@ -139,7 +248,7 @@ export default function MembersPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between py-2">
           <SearchBar value={query} onChange={setQuery} placeholder="Search members by name or role…" className="w-full md:max-w-sm" />
           <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            {depts.map((dept: any) => (
+            {depts.map((dept: string) => (
               <button
                 key={dept}
                 onClick={() => setFilterDept(dept)}
@@ -156,64 +265,80 @@ export default function MembersPage() {
         </div>
       </FadeIn>
 
-      <StaggerGroup className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="overflow-hidden rounded-2xl border border-border-soft bg-white/80 shadow-soft">
         {filtered.length > 0 ? (
-          filtered.map((m: any) => (
-            <StaggerItem key={m.id}>
-              <motion.div
-                whileHover={{ y: -4, scale: 1.01 }}
-                onClick={() => setSelectedMemberName(m.name)}
-                className="card-surface p-6 flex flex-col justify-between h-full transition-all duration-200 hover:shadow-lift cursor-pointer hover:border-navy/20 bg-white/70"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <Avatar name={m.name} src={m.avatarUrl} size="lg" ring />
-                    <Badge tone={m.status === 'active' ? 'success' : 'neutral'}>
-                      {m.status}
-                    </Badge>
-                  </div>
-                  <div className="mt-4 text-left">
-                    <h3 className="text-base font-bold text-ink leading-snug">{m.name}</h3>
-                    <p className="text-sm font-medium text-navy/80 mt-0.5">{m.role}</p>
-                    <div className="mt-3 space-y-1 text-xs text-ink-soft/80">
-                      <p>Joined · <span className="font-semibold text-ink-soft">{m.joinedDate}</span></p>
-                      <p>Department · <span className="font-semibold text-ink-soft">{m.department}</span></p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-between border-t border-border-soft/60 pt-4">
-                  <div className="flex items-center gap-2">
-                    <Award className="h-4.5 w-4.5 text-navy" />
-                    <span className="text-sm font-bold text-navy">{m.points} points</span>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStatusToggle(m.id, m.name, m.status);
-                    }}
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl border border-border-soft transition-all duration-200 hover:bg-cream-100 ${
-                      m.status === 'active' ? 'text-danger hover:border-danger/40 hover:bg-danger/5' : 'text-success hover:border-success/40 hover:bg-success/5'
-                    }`}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border-soft">
+              <thead className="bg-cream-100/70">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">Member</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">Club</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">Department</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-soft/70 bg-white/70">
+                {filtered.map((m) => (
+                  <tr
+                    key={m.id}
+                    onClick={() => setSelectedMemberId(m.id)}
+                    className="cursor-pointer transition hover:bg-cream-100/50"
                   >
-                    {m.status === 'active' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                  </button>
-                </div>
-              </motion.div>
-            </StaggerItem>
-          ))
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={m.name} src={m.avatarUrl} size="md" ring />
+                        <div>
+                          <p className="text-sm font-semibold text-ink">{m.name}</p>
+                          <p className="text-xs text-ink-soft">{m.year}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-ink-soft">{m.email}</td>
+                    <td className="px-4 py-3 text-sm text-ink-soft">{m.role}</td>
+                    <td className="px-4 py-3 text-sm text-ink-soft">{m.club}</td>
+                    <td className="px-4 py-3 text-sm text-ink-soft">{m.department}</td>
+                    <td className="px-4 py-3">
+                      <Badge tone={m.status === 'active' ? 'success' : 'neutral'}>{m.status}</Badge>
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleStatusToggle(m.id, m.name, m.status)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-xl border border-border-soft transition-all duration-200 hover:bg-cream-100 ${
+                          m.status === 'active' ? 'text-danger hover:border-danger/40 hover:bg-danger/5' : 'text-success hover:border-success/40 hover:bg-success/5'
+                        }`}
+                      >
+                        {m.status === 'active' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border-soft p-12 text-center bg-white/50 col-span-3">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border-soft p-12 text-center bg-white/50">
             <AlertCircle className="h-8 w-8 text-ink-soft/40" />
             <p className="mt-2 text-sm font-semibold text-ink">No members found</p>
             <p className="text-xs text-ink-soft">Adjust filters or search parameters.</p>
           </div>
         )}
-      </StaggerGroup>
+      </div>
 
       <MemberProfileModal
-        memberName={selectedMemberName}
-        onClose={() => setSelectedMemberName(null)}
+        memberId={selectedMemberId}
+        onClose={() => setSelectedMemberId(null)}
+        onUpdated={(updatedMember) => {
+          const updated = members.map((member) => (member.id === updatedMember.id ? {
+            ...member,
+            role: updatedMember.role,
+            club: updatedMember.club,
+          } : member));
+          setMembers(updated);
+          localStorage.setItem('campusos_club_members', JSON.stringify(updated));
+        }}
       />
 
       {/* Add Member Modal */}

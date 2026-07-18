@@ -8,6 +8,20 @@ import { mockEvents } from "../../data/mockEvents";
 import type { PlannerEvent } from "../../types/planner";
 import { FadeIn, StaggerGroup, StaggerItem } from "../../components/ui/motion";
 import { Card, CardHeader } from "../../components/ui/Card";
+import api from "../../services/api";
+
+const normalizePlannerEvent = (item: any): PlannerEvent => ({
+  id: item._id || item.id || `planner-${Date.now()}`,
+  title: item.title || item.name || "Untitled Event",
+  description: item.description || "",
+  category: (item.category as PlannerEvent["category"]) || "Workshop",
+  start: item.start || `${item.date}T${item.time}:00` || new Date().toISOString(),
+  end: item.end || `${item.date}T${item.time}:00` || new Date().toISOString(),
+  venue: item.venue || item.location || "TBD",
+  organizer: item.organizer || "Campus Club",
+  participants: item.participants || item.maxParticipants || 0,
+  color: item.color || "#19376D",
+});
 
 export default function CampusPlanner() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -16,16 +30,32 @@ export default function CampusPlanner() {
   const [events, setEvents] = useState<PlannerEvent[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("campusEvents");
-    if (saved) {
-      setEvents(JSON.parse(saved));
-    } else {
-      setEvents(mockEvents);
-      localStorage.setItem(
-        "campusEvents",
-        JSON.stringify(mockEvents)
-      );
-    }
+    let active = true;
+
+    const loadEvents = async () => {
+      try {
+        const response = await api.get("/events");
+        const payload = response.data;
+        const data = Array.isArray(payload) ? payload : payload?.events || payload?.data || [];
+
+        if (active) {
+          const mapped = data.map(normalizePlannerEvent);
+          setEvents(mapped);
+          localStorage.setItem("campusEvents", JSON.stringify(mapped));
+        }
+      } catch {
+        const fallback = mockEvents as PlannerEvent[];
+        if (active) {
+          setEvents(fallback);
+          localStorage.setItem("campusEvents", JSON.stringify(fallback));
+        }
+      }
+    };
+
+    void loadEvents();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (

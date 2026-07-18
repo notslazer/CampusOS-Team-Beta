@@ -24,6 +24,9 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn('shimmer-bg rounded-lg', className)} />;
 }
 
+/**
+ * SkeletonCard: Generic card skeleton placeholder
+ */
 export function SkeletonCard() {
   return (
     <div className="card-surface p-5">
@@ -39,3 +42,125 @@ export function SkeletonCard() {
     </div>
   );
 }
+
+/**
+ * SkeletonStatCard: Skeleton for stat cards
+ */
+export function SkeletonStatCard() {
+  return (
+    <div className="card-surface p-5">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="mt-3 h-8 w-16" />
+        </div>
+        <Skeleton className="h-10 w-10 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SkeletonTable: Skeleton for table rows
+ */
+export function SkeletonTableRow() {
+  return (
+    <tr className="border-b border-beige">
+      <td className="px-4 py-3">
+        <Skeleton className="h-3 w-24" />
+      </td>
+      <td className="px-4 py-3">
+        <Skeleton className="h-3 w-32" />
+      </td>
+      <td className="px-4 py-3">
+        <Skeleton className="h-3 w-20" />
+      </td>
+      <td className="px-4 py-3">
+        <Skeleton className="h-3 w-16" />
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * SkeletonDashboard: Full dashboard loading skeleton with multiple sections
+ */
+export function SkeletonDashboard() {
+  return (
+    <div className="space-y-6 p-6">
+      {/* Header Skeleton */}
+      <div>
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="mt-2 h-4 w-64" />
+      </div>
+
+      {/* Stats Row Skeleton */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array(4).fill(0).map((_, i) => (
+          <SkeletonStatCard key={i} />
+        ))}
+      </div>
+
+      {/* Main Content Skeleton */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left Column */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="card-surface p-5">
+            <Skeleton className="h-6 w-32" />
+            <div className="mt-4 space-y-3">
+              {Array(3).fill(0).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar Skeleton */}
+        <div className="space-y-4">
+          <div className="card-surface p-5">
+            <Skeleton className="h-6 w-40" />
+            <div className="mt-4 space-y-3">
+              {Array(2).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SkeletonEventCard: Skeleton for event cards
+ */
+export function SkeletonEventCard() {
+  return (
+    <div className="card-surface overflow-hidden">
+      <Skeleton className="h-40 w-full" />
+      <div className="p-4">
+        <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="mt-2 h-3 w-full" />
+        <Skeleton className="mt-1 h-3 w-5/6" />
+        <div className="mt-4 flex gap-2">
+          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SkeletonList: Skeleton for a list of items
+ */
+export function SkeletonList({ count = 5 }: { count?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array(count).fill(0).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+}
+

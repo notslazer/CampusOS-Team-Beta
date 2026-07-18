@@ -31,7 +31,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const role = user?.role ?? 'member';
-  const navItems = NAV_ITEMS_BY_ROLE[role];
+  const navItems = NAV_ITEMS_BY_ROLE[role] ?? [];
 
   const handleLogout = () => {
     logout();

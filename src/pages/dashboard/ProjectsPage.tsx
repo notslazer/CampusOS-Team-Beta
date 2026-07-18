@@ -1,46 +1,67 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FolderKanban, Users, CalendarDays, UserPlus, Search } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { FadeIn, StaggerGroup, StaggerItem } from '../../components/ui/motion';
-import { mockProjects } from '../../utils/mockData';
-import { mockProjects as showcaseProjects } from '../../data/mockProjects';
+import { mockProjects as fallbackTrackerProjects } from '../../utils/mockData';
+import { mockProjects as fallbackShowcaseProjects } from '../../data/mockProjects';
 import ProjectCard from '../../components/projects/ProjectCard';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import { Avatar } from '../../components/ui/Avatar';
 import { MemberProfileModal } from '../../components/ui/MemberProfileModal';
+import api from '../../services/api';
+import type { Project } from '../../types/project';
 
 const statusTone = {
   active: 'success',
   review: 'warning',
   planning: 'navy',
   completed: 'neutral',
+  ongoing: 'success',
 } as const;
+
+const normalizeProject = (item: any): Project => ({
+  id: item._id || item.id || `project-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  title: item.title || item.name || 'Untitled Project',
+  club: item.club || item.clubName || 'Student Project',
+  description: item.description || 'No description provided yet.',
+  techStack: Array.isArray(item.techStack) ? item.techStack : Array.isArray(item.technologies) ? item.technologies : [],
+  technologies: Array.isArray(item.technologies) ? item.technologies : Array.isArray(item.techStack) ? item.techStack : [],
+  members: item.members || item.teamSize || 0,
+  likes: item.likes || 0,
+  views: item.views || 0,
+  featured: Boolean(item.featured),
+  status: item.status || 'Active',
+  image: item.image || item.screenshots?.[0] || item.coverImage || '',
+  screenshots: Array.isArray(item.screenshots) ? item.screenshots : item.screenshots ? [item.screenshots] : [],
+  github: item.github || '',
+  demo: item.demo || '',
+  githubLink: item.githubLink || item.github || '',
+  demoLink: item.demoLink || item.demo || '',
+});
 
 export default function ProjectsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  
-  // Tab control
+
   const [activeTab, setActiveTab] = useState<'showcase' | 'tracker'>('showcase');
-
-  // Clickable member profile state
   const [selectedMemberName, setSelectedMemberName] = useState<string | null>(null);
-
-  // Showcase state
   const [showcaseSearch, setShowcaseSearch] = useState('');
   const [showcaseClub, setShowcaseClub] = useState('All');
-
-  // Tracker state
   const [trackerQuery, setTrackerQuery] = useState('');
   const [projects, setProjects] = useState(() => {
     const saved = localStorage.getItem('campusos_projects');
-    return saved ? JSON.parse(saved) : mockProjects;
+    return saved ? JSON.parse(saved) : fallbackTrackerProjects;
   });
+  const [showcaseProjects, setShowcaseProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('campusos_showcase_projects');
+    return saved ? JSON.parse(saved) : fallbackShowcaseProjects;
+  });
+  const [isProjectsLoading, setIsProjectsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [joinRequests, setJoinRequests] = useState<string[]>(() => {
@@ -48,10 +69,61 @@ export default function ProjectsPage() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Showcase logic
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadShowcaseProjects = async () => {
+      setIsProjectsLoading(true);
+
+      try {
+        const endpoints = ['/projects/showcase', '/projects'];
+        for (const endpoint of endpoints) {
+          try {
+            const response = await api.get(endpoint);
+            const payload = response.data;
+            const data = Array.isArray(payload)
+              ? payload
+              : payload?.projects || payload?.data || payload?.results || [];
+
+            if (Array.isArray(data) && data.length > 0) {
+              const mapped = data.map(normalizeProject);
+              if (isMounted) {
+                setShowcaseProjects(mapped);
+                localStorage.setItem('campusos_showcase_projects', JSON.stringify(mapped));
+              }
+              return;
+            }
+          } catch {
+            // continue to the next endpoint
+          }
+        }
+
+        if (isMounted) {
+          setShowcaseProjects(fallbackShowcaseProjects);
+          localStorage.setItem('campusos_showcase_projects', JSON.stringify(fallbackShowcaseProjects));
+        }
+      } catch {
+        if (isMounted) {
+          setShowcaseProjects(fallbackShowcaseProjects);
+          localStorage.setItem('campusos_showcase_projects', JSON.stringify(fallbackShowcaseProjects));
+        }
+      } finally {
+        if (isMounted) {
+          setIsProjectsLoading(false);
+        }
+      }
+    };
+
+    void loadShowcaseProjects();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const clubs = useMemo(
-    () => ['All', ...new Set(showcaseProjects.map((p) => p.club))],
-    []
+    () => ['All', ...new Set(showcaseProjects.map((p) => p.club || 'General'))],
+    [showcaseProjects]
   );
 
   const filteredShowcase = useMemo(() => {
@@ -65,52 +137,93 @@ export default function ProjectsPage() {
 
       return matchesSearch && matchesClub;
     });
-  }, [showcaseSearch, showcaseClub]);
+  }, [showcaseSearch, showcaseClub, showcaseProjects]);
 
-  const featuredProjects = filteredShowcase.filter(
-    (project) => project.featured
-  );
+  const featuredProjects = filteredShowcase.filter((project) => project.featured);
 
-  // Tracker logic
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    const name = formData.get('name') as string;
-    const description = formData.get('description') as string;
-    const dueDate = formData.get('dueDate') as string;
-    const membersVal = formData.get('members') as string;
+    const title = (formData.get('title') as string)?.trim();
+    const description = (formData.get('description') as string)?.trim();
+    const githubLink = (formData.get('githubLink') as string)?.trim();
+    const demoLink = (formData.get('demoLink') as string)?.trim();
+    const technologiesInput = (formData.get('technologies') as string)?.trim();
+    const screenshotsInput = (formData.get('screenshots') as string)?.trim();
 
-    if (!name || !description || !dueDate) return;
+    if (!title || !description) return;
 
-    const newProj = {
-      id: 'proj_' + Date.now(),
-      name,
+    const payload = {
+      title,
       description,
-      dueDate,
-      members: parseInt(membersVal, 10) || 1,
-      progress: 0,
-      status: 'planning' as const,
-      tag: 'Development',
+      githubLink: githubLink || undefined,
+      demoLink: demoLink || undefined,
+      technologies: technologiesInput
+        ? technologiesInput.split(',').map((tech) => tech.trim()).filter(Boolean)
+        : [],
+      screenshots: screenshotsInput
+        ? screenshotsInput.split(',').map((screenshot) => screenshot.trim()).filter(Boolean)
+        : [],
     };
 
-    const updated = [newProj, ...projects];
-    setProjects(updated);
-    localStorage.setItem('campusos_projects', JSON.stringify(updated));
-    setIsCreateOpen(false);
-    toast({
-      title: 'Project Created Successfully',
-      description: `"${name}" has been created in planning stage.`,
-      variant: 'success',
+    const localProject = normalizeProject({
+      ...payload,
+      id: `local-${Date.now()}`,
+      club: user?.club || 'Your Club',
+      status: 'planning',
+      featured: false,
+      image: '',
+      members: 1,
     });
+
+    try {
+      const response = await api.post('/projects', payload);
+      const createdProject = normalizeProject(response.data?.project || response.data || localProject);
+
+      setProjects((current) => {
+        const updated = [createdProject, ...current];
+        localStorage.setItem('campusos_projects', JSON.stringify(updated));
+        return updated;
+      });
+      setShowcaseProjects((current) => {
+        const updated = [createdProject, ...current];
+        localStorage.setItem('campusos_showcase_projects', JSON.stringify(updated));
+        return updated;
+      });
+
+      toast({
+        title: 'Project Created Successfully',
+        description: `"${createdProject.title}" has been added to the showcase and tracker.`,
+        variant: 'success',
+      });
+      setIsCreateOpen(false);
+    } catch (error) {
+      setProjects((current) => {
+        const updated = [localProject, ...current];
+        localStorage.setItem('campusos_projects', JSON.stringify(updated));
+        return updated;
+      });
+      setShowcaseProjects((current) => {
+        const updated = [localProject, ...current];
+        localStorage.setItem('campusos_showcase_projects', JSON.stringify(updated));
+        return updated;
+      });
+
+      toast({
+        title: 'Project Saved Locally',
+        description: 'The project was queued locally because the backend endpoint was unavailable.',
+        variant: 'warning',
+      });
+      setIsCreateOpen(false);
+    }
   };
 
-  const filteredTracker = projects.filter((p: any) => p.name.toLowerCase().includes(trackerQuery.toLowerCase()));
+  const filteredTracker = projects.filter((p: any) => p.name?.toLowerCase().includes(trackerQuery.toLowerCase()));
 
   const canCreate = user?.role === 'lead' || user?.role === 'faculty';
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <FadeIn>
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
@@ -125,7 +238,6 @@ export default function ProjectsPage() {
         </div>
       </FadeIn>
 
-      {/* Tab Switcher */}
       <FadeIn delay={0.04}>
         <div className="flex gap-1 border-b border-border-soft pb-px">
           <button
@@ -151,7 +263,6 @@ export default function ProjectsPage() {
         </div>
       </FadeIn>
 
-      {/* ── SHOWCASE TAB ── */}
       {activeTab === 'showcase' && (
         <div className="space-y-8">
           <FadeIn delay={0.08}>
@@ -184,7 +295,12 @@ export default function ProjectsPage() {
             </div>
           </FadeIn>
 
-          {/* Featured showcase */}
+          {isProjectsLoading && (
+            <div className="rounded-2xl border border-dashed border-border-soft bg-white/70 p-8 text-center text-sm text-ink-soft">
+              Loading projects from the backend...
+            </div>
+          )}
+
           {featuredProjects.length > 0 && (
             <FadeIn delay={0.12}>
               <div className="space-y-4">
@@ -193,17 +309,13 @@ export default function ProjectsPage() {
                 </h2>
                 <div className="grid gap-6 md:grid-cols-2">
                   {featuredProjects.map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                    />
+                    <ProjectCard key={project.id} project={project} />
                   ))}
                 </div>
               </div>
             </FadeIn>
           )}
 
-          {/* All Showcase */}
           <FadeIn delay={0.16}>
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-navy flex items-center gap-1.5">
@@ -217,10 +329,7 @@ export default function ProjectsPage() {
               ) : (
                 <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                   {filteredShowcase.map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                    />
+                    <ProjectCard key={project.id} project={project} />
                   ))}
                 </div>
               )}
@@ -229,7 +338,6 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* ── TRACKER TAB ── */}
       {activeTab === 'tracker' && (
         <div className="space-y-6">
           <FadeIn delay={0.08}>
@@ -248,7 +356,7 @@ export default function ProjectsPage() {
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy/10 text-navy">
                       <FolderKanban className="h-5 w-5" />
                     </span>
-                    <Badge tone={statusTone[p.status as keyof typeof statusTone]} dot>{p.status}</Badge>
+                    <Badge tone={statusTone[(p.status || 'active').toLowerCase() as keyof typeof statusTone] || 'neutral'} dot>{p.status || 'Active'}</Badge>
                   </div>
                   <h3 className="mt-4 text-base font-semibold text-ink">{p.name}</h3>
                   <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{p.description}</p>
@@ -277,7 +385,6 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* ── Modals ── */}
       {isCreateOpen && (
         <Modal
           open={isCreateOpen}
@@ -288,8 +395,8 @@ export default function ProjectsPage() {
         >
           <form onSubmit={handleCreateProject} className="space-y-4">
             <div>
-              <label className="label-base">Project Name</label>
-              <input name="name" required className="input-base mt-1.5 w-full" placeholder="e.g. Website Redesign" />
+              <label className="label-base">Project Title</label>
+              <input name="title" required className="input-base mt-1.5 w-full" placeholder="e.g. Website Redesign" />
             </div>
             <div>
               <label className="label-base">Description</label>
@@ -297,12 +404,22 @@ export default function ProjectsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label-base">Due Date</label>
-                <input name="dueDate" required className="input-base mt-1.5 w-full" placeholder="e.g. Aug 15" />
+                <label className="label-base">GitHub Link</label>
+                <input name="githubLink" className="input-base mt-1.5 w-full" placeholder="https://github.com/..." />
               </div>
               <div>
-                <label className="label-base">Team Size</label>
-                <input name="members" type="number" required className="input-base mt-1.5 w-full" placeholder="e.g. 5" defaultValue="3" />
+                <label className="label-base">Demo Link</label>
+                <input name="demoLink" className="input-base mt-1.5 w-full" placeholder="https://demo.example.com" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label-base">Technologies</label>
+                <input name="technologies" className="input-base mt-1.5 w-full" placeholder="React, TypeScript, Tailwind" />
+              </div>
+              <div>
+                <label className="label-base">Screenshots</label>
+                <input name="screenshots" className="input-base mt-1.5 w-full" placeholder="https://img1.com, https://img2.com" />
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
@@ -332,8 +449,8 @@ export default function ProjectsPage() {
                   <p className="text-xs text-ink-soft">{selectedProject.tag || 'Club Project'}</p>
                 </div>
               </div>
-              <Badge tone={statusTone[selectedProject.status as keyof typeof statusTone]} dot>
-                {selectedProject.status}
+              <Badge tone={statusTone[(selectedProject.status || 'active').toLowerCase() as keyof typeof statusTone] || 'neutral'} dot>
+                {selectedProject.status || 'Active'}
               </Badge>
             </div>
 
@@ -389,7 +506,6 @@ export default function ProjectsPage() {
                   </div>
                 ))}
 
-                {/* Render open seats if members count is higher than mock list count */}
                 {(() => {
                   const totalSeats = selectedProject.members || 3;
                   const activeMockCount = Math.min(totalSeats, 3);

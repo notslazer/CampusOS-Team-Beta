@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Trophy, Award, Briefcase, CalendarDays, MapPin, Zap } from 'lucide-react';
 import { Modal } from './Modal';
 import { Avatar } from './Avatar';
 import { Badge } from './Badge';
 import { Button } from './Button';
+import { api } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 
 export interface MemberProfile {
   id: string;
@@ -266,34 +268,128 @@ const defaultProfile = (name: string): MemberProfile => ({
 });
 
 interface Props {
-  memberName: string | null;
+  memberId: string | null;
   onClose: () => void;
+  onUpdated?: (member: MemberProfile) => void;
 }
 
-export function MemberProfileModal({ memberName, onClose }: Props) {
+const normalizeMemberProfile = (payload: Record<string, unknown> | null | undefined, fallbackName: string): MemberProfile => {
+  const fullName = String((payload?.fullName as string | undefined) || (payload?.name as string | undefined) || fallbackName);
+  const normalizedPayload = payload ?? {};
+  return {
+    id: String((normalizedPayload.id as string | undefined) || (normalizedPayload._id as string | undefined) || `member-${Date.now()}`),
+    name: fullName,
+    email: String((normalizedPayload.email as string | undefined) || `${fullName.toLowerCase().replace(/\s+/g, '.')}@campusos.app`),
+    role: String((normalizedPayload.role as string | undefined) || 'member'),
+    department: String((normalizedPayload.department as string | undefined) || 'Unassigned'),
+    year: String((normalizedPayload.year as string | undefined) || 'N/A'),
+    club: String((normalizedPayload.club as string | undefined) || (normalizedPayload.clubName as string | undefined) || 'Unassigned'),
+    bio: String((normalizedPayload.bio as string | undefined) || 'Active member contributing to campus club work.'),
+    avatarUrl: normalizedPayload.avatarUrl as string | undefined,
+    skills: Array.isArray(normalizedPayload.skills) ? (normalizedPayload.skills as string[]) : ['Community', 'Growth'],
+    achievements: Array.isArray(normalizedPayload.achievements) ? (normalizedPayload.achievements as MemberProfile['achievements']) : [],
+    badges: Array.isArray(normalizedPayload.badges) ? (normalizedPayload.badges as MemberProfile['badges']) : [],
+    certificates: Array.isArray(normalizedPayload.certificates) ? (normalizedPayload.certificates as MemberProfile['certificates']) : [],
+  };
+};
+
+export function MemberProfileModal({ memberId, onClose, onUpdated }: Props) {
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<MemberProfile | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formRole, setFormRole] = useState('member');
+  const [formClub, setFormClub] = useState('');
+  const [activeAchievement, setActiveAchievement] = useState<{ id: string; title: string; description: string; date: string } | null>(null);
+  const [activeCertificate, setActiveCertificate] = useState<{ id: string; title: string; issuer: string; date: string; fileUrl?: string } | null>(null);
+
   useEffect(() => {
-    // Sync/initialize profiles map in local storage
     const saved = localStorage.getItem('campusos_member_profiles');
     if (!saved) {
       localStorage.setItem('campusos_member_profiles', JSON.stringify(mockProfiles));
     }
   }, []);
 
-  const profile = useMemo(() => {
-    if (!memberName) return null;
-    const saved = localStorage.getItem('campusos_member_profiles');
-    const currentProfiles = saved ? JSON.parse(saved) : mockProfiles;
-    return (currentProfiles[memberName] || defaultProfile(memberName)) as MemberProfile;
-  }, [memberName]);
+  useEffect(() => {
+    if (!memberId) {
+      setProfile(null);
+      return;
+    }
 
-  const [activeAchievement, setActiveAchievement] = useState<any>(null);
-  const [activeCertificate, setActiveCertificate] = useState<any>(null);
+    let active = true;
+
+    const loadProfile = async () => {
+      setLoading(true);
+      try {
+        const { data } = await api.get(`/members/${memberId}`);
+        const nextProfile = normalizeMemberProfile(data, 'Member');
+        if (active) {
+          setProfile(nextProfile);
+          setFormRole(nextProfile.role);
+          setFormClub(nextProfile.club);
+        }
+      } catch (error) {
+        if (!active) return;
+        const saved = localStorage.getItem('campusos_member_profiles');
+        const currentProfiles = saved ? JSON.parse(saved) : mockProfiles;
+        const fallbackProfile = currentProfiles[memberId] || defaultProfile(memberId);
+        setProfile(fallbackProfile as MemberProfile);
+        setFormRole((fallbackProfile as MemberProfile).role || 'member');
+        setFormClub((fallbackProfile as MemberProfile).club || '');
+
+        const message = error instanceof Error ? error.message : 'Unable to load member details.';
+        toast({
+          title: 'Profile Load Failed',
+          description: message,
+          variant: 'warning',
+        });
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [memberId, toast]);
+
+  const handleSave = async () => {
+    if (!profile || !memberId) return;
+
+    setSaving(true);
+
+    try {
+      const { data } = await api.patch(`/members/${memberId}`, {
+        role: formRole,
+        club: formClub.trim(),
+      });
+      const updatedProfile = normalizeMemberProfile(data || { ...profile, role: formRole, club: formClub.trim() }, profile.name);
+      setProfile(updatedProfile);
+      onUpdated?.(updatedProfile);
+      toast({
+        title: 'Member Updated',
+        description: 'Role and club assignment were saved successfully.',
+        variant: 'success',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to update member details.';
+      toast({
+        title: 'Update Failed',
+        description: message,
+        variant: 'error',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!profile) return null;
 
   return (
     <Modal
-      open={!!memberName}
+      open={!!memberId}
       onClose={onClose}
       title=""
       description=""
@@ -337,6 +433,43 @@ export function MemberProfileModal({ memberName, onClose }: Props) {
         </div>
 
         <div className="p-6 space-y-5 max-h-[50vh] overflow-y-auto">
+          <div className="rounded-xl border border-border-soft bg-white p-4 shadow-soft">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-ink">Manage Access</h3>
+                <p className="text-xs text-ink-soft">Update the member role and club assignment.</p>
+              </div>
+              {loading ? <span className="text-xs text-ink-soft">Loading…</span> : null}
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-sm text-ink-soft">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide">Role</span>
+                <select
+                  value={formRole}
+                  onChange={(e) => setFormRole(e.target.value)}
+                  className="input-base w-full"
+                >
+                  <option value="member">Member</option>
+                  <option value="lead">Lead</option>
+                  <option value="faculty">Faculty</option>
+                </select>
+              </label>
+              <label className="text-sm text-ink-soft">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide">Club</span>
+                <input
+                  value={formClub}
+                  onChange={(e) => setFormClub(e.target.value)}
+                  placeholder="Club name"
+                  className="input-base w-full"
+                />
+              </label>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button variant="primary" loading={saving} disabled={saving} onClick={handleSave}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
           {/* Badges strips */}
           {profile.badges.length > 0 && (
             <div className="space-y-2">

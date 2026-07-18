@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
 import type { PlannerEvent } from "../../types/planner";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import api from "../../services/api";
+import { eventsService } from "../../services/eventsService";
 
 interface Props {
   open: boolean;
@@ -16,6 +19,7 @@ export default function CreateEventModal({
   onCreate,
 }: Props) {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -28,6 +32,9 @@ export default function CreateEventModal({
   const [category, setCategory] = useState<
     "Workshop" | "Meeting" | "Competition" | "Hackathon" | "Deadline"
   >("Workshop");
+  const [registrationDeadline, setRegistrationDeadline] = useState("");
+  const [maxParticipants, setMaxParticipants] = useState("");
+  const [poster, setPoster] = useState("");
 
   const colorMap = {
     Workshop: "#22c55e",
@@ -47,9 +54,43 @@ export default function CreateEventModal({
     setVenue("");
     setOrganizer("");
     setCategory("Workshop");
+    setRegistrationDeadline("");
+    setMaxParticipants("");
+    setPoster("");
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    
+    const canCreate = user?.role === "lead" || user?.role === "faculty";
+    if (description.length < 10) {
+      toast({
+        title: "Validation Error",
+        description: "Description must be at least 10 characters long.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    const dateValue = new Date(`${startDate}T${startTime}:00`);
+
+    if (dateValue <= new Date()) {
+      toast({
+        title: "Invalid Date",
+        description: "Please select a future date and time.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    if (!canCreate) {
+      toast({
+        title: "Access Restricted",
+        description: "Only Admins or Club Leads can create events.",
+        variant: "warning",
+      });
+      console.log("Access check failed");
+      return;
+    }
     if (
       !title ||
       !startDate ||
@@ -62,32 +103,53 @@ export default function CreateEventModal({
         description: "Please fill all required fields.",
         variant: "warning",
       });
+      console.log("Validation check failed: Missing fields");
       return;
     }
+    console.log("Validation passed, attempting API call...");
 
     const finalEndDate = endDate || startDate;
     const finalEndTime = endTime || startTime;
 
-    const event: PlannerEvent = {
-      id: Date.now().toString(),
-      title,
-      description,
-      category,
-      start: `${startDate}T${startTime}:00`,
-      end: `${finalEndDate}T${finalEndTime}:00`,
-      venue,
-      organizer,
-      participants: 0,
-      color: colorMap[category],
-    };
+    const payload = {
+    title,
+    description,
+    date: new Date(`${startDate}T${startTime}:00`).toISOString(), // Combine date and time
+    location: venue, // Map venue to location
+    category: category.toLowerCase() as any, // Match enum: workshop, meeting, etc.
+    capacity: maxParticipants ? Number(maxParticipants) : undefined,
+    posterUrl: poster || undefined, // Map poster to posterUrl
+  };
 
-    onCreate(event);
+    try {
+      await eventsService.createEvent(payload);
 
-    toast({
-      title: "Event Created",
-      description: `${title} has been added successfully.`,
-      variant: "success",
-    });
+      const event: PlannerEvent = {
+        id: Date.now().toString(),
+        title,
+        description,
+        category,
+        start: `${startDate}T${startTime}:00`,
+        end: `${finalEndDate}T${finalEndTime}:00`,
+        venue,
+        organizer,
+        participants: 0,
+        color: colorMap[category],
+      };
+
+      onCreate(event);
+
+      toast({ title: "Success", description: "Event created!", variant: "success" });
+      onCreate(event);
+      onClose();
+    } catch ( err: any) {
+      console.error("API Error:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to create event",
+        variant: "warning",
+      });
+    }
 
     resetForm();
     onClose();
@@ -219,6 +281,39 @@ export default function CreateEventModal({
           </select>
         </div>
 
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label-base">Registration Deadline</label>
+            <input
+              type="date"
+              value={registrationDeadline}
+              onChange={(e) => setRegistrationDeadline(e.target.value)}
+              className="input-base w-full"
+            />
+          </div>
+
+          <div>
+            <label className="label-base">Max Participants</label>
+            <input
+              type="number"
+              value={maxParticipants}
+              onChange={(e) => setMaxParticipants(e.target.value)}
+              placeholder="e.g. 120"
+              className="input-base w-full"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="label-base">Poster URL</label>
+          <input
+            value={poster}
+            onChange={(e) => setPoster(e.target.value)}
+            placeholder="https://..."
+            className="input-base w-full"
+          />
+        </div>
+
         <div className="mt-6 flex justify-end gap-3">
           <Button
             variant="secondary"
@@ -229,7 +324,7 @@ export default function CreateEventModal({
           >
             Cancel
           </Button>
-          <Button onClick={handleCreate} leftIcon="Check">
+          <Button type="button" onClick={handleCreate} leftIcon="Check">
             Create Event
           </Button>
         </div>
