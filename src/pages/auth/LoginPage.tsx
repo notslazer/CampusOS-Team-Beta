@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Check, Crown, ShieldCheck, Users, Sparkles,
+  ArrowLeft, Check, Crown, ShieldCheck, Users, 
   CalendarDays, Trophy, FolderKanban, Megaphone, BarChart3,
 } from 'lucide-react';
 import { Input, PasswordInput } from '../../components/ui/Input';
@@ -158,19 +158,20 @@ export default function LoginPage({ role }: { role: Role }) {
     }
   };
 
-  const floatingCards = {
-    member:  [
-     
-      
-    ],
-    lead:    [
-      
-    ],
-    faculty: [
-      
-      
-    ],
-  };
+  const floatingCards: Record<
+  Role,
+  {
+    label: string;
+    icon: typeof CalendarDays;
+    delay: number;
+    x: string;
+    y: string;
+  }[]
+> = {
+  member: [],
+  lead: [],
+  faculty: [],
+};
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-2">
@@ -187,9 +188,13 @@ export default function LoginPage({ role }: { role: Role }) {
           transition={{ delay: 0.2 }}
           className="relative flex items-center gap-2.5 text-white"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-            <Sparkles className="h-5 w-5" />
-          </div>
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+  <img
+    src="/favicon.png"
+    alt="CampusOS"
+    className="h-7 w-7 object-contain"
+  />
+</div>
           <div>
             <p className="text-lg font-bold leading-tight">{APP_NAME}</p>
             <p className="text-xs text-white/60">{APP_TAGLINE}</p>
@@ -279,9 +284,13 @@ export default function LoginPage({ role }: { role: Role }) {
             {/* Header */}
             <div className="mb-6">
               <div className="flex items-center gap-3">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${ROLES[role].gradient} text-white shadow-soft`}>
-                  <RoleIcon className="h-6 w-6" />
-                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-soft border">
+  <img
+    src="/favicon.png"
+    alt="CampusOS"
+    className="h-8 w-8 object-contain"
+  />
+</div>
                 <div>
                   <h1 className="text-2xl font-bold text-ink">
                     Welcome Back 👋

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -12,23 +12,30 @@ import { Avatar } from '../../components/ui/Avatar';
 import { StatCard } from '../../components/ui/StatCard';
 import { FadeIn, StaggerGroup, StaggerItem } from '../../components/ui/motion';
 import { useAuth } from '../../context/AuthContext';
-import { useCountUp } from '../../hooks';
+
 import { EventActionModal, type EventActionDetails } from '../../components/events/EventActionModal';
 import {
-  mockMemberStats,
-  mockTodayEvents,
-  mockMyRegisteredEvents,
+   
+  
+  
   mockBlogPosts,
   mockAnnouncements,
   mockLeaderboard,
   buildMockCalendar,
   mockEvents,
 } from '../../utils/mockData';
+import type { StatCard as StatCardType } from "../../types";
 
 export default function MemberDashboard() {
   const { user } = useAuth();
   const [selectedEvent, setSelectedEvent] = useState<EventActionDetails | null>(null);
-  const [events] = useState(() => {
+
+const [registeredEvents, setRegisteredEvents] = useState<string[]>(() =>
+  JSON.parse(localStorage.getItem("registeredEvents") || "[]")
+);
+  const [events, setEvents] = useState(() => {
+   
+
     const saved = localStorage.getItem('campusos_events');
     return saved ? JSON.parse(saved) : mockEvents;
   });
@@ -36,6 +43,28 @@ export default function MemberDashboard() {
     const saved = localStorage.getItem('campusos_announcements');
     return saved ? JSON.parse(saved) : mockAnnouncements;
   });
+  useEffect(() => {
+  const update = () => {
+    setRegisteredEvents(
+      JSON.parse(localStorage.getItem("registeredEvents") || "[]")
+    );
+
+    const savedEvents = localStorage.getItem("campusos_events");
+    if (savedEvents) {
+      setEvents(JSON.parse(savedEvents));
+    }
+  };
+
+  update();
+
+  window.addEventListener("campusos_event_registered", update);
+
+  return () =>
+    window.removeEventListener(
+      "campusos_event_registered",
+      update
+    );
+}, []);
   const calendar = buildMockCalendar(events);
   const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const hour = new Date().getHours();
@@ -43,9 +72,40 @@ export default function MemberDashboard() {
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   // Simulate finding this member in the leaderboard
-  const myRank = 7;
-  const myPoints = useCountUp(980, 1400, true);
+ const myRank = 0;
+const myPoints = 0;
 
+const memberStats: StatCardType[] = [
+  {
+    id: "ms1",
+    label: "Events Attended",
+    value: 0,
+    icon: "CalendarDays",
+    accent: "navy",
+  },
+  {
+    id: "ms2",
+    label: "Leaderboard Rank",
+    value: myRank,
+    icon: "Trophy",
+    accent: "warning",
+  },
+  {
+    id: "ms3",
+    label: "Club Points",
+    value: myPoints,
+    suffix: "pts",
+    icon: "Star",
+    accent: "sand",
+  },
+  {
+    id: "ms4",
+    label: "Certificates",
+    value: user?.certificates?.length ?? 0,
+    icon: "Award",
+    accent: "success",
+  },
+];
   return (
     <div className="space-y-6">
       {/* Greeting */}
@@ -75,11 +135,11 @@ export default function MemberDashboard() {
 
       {/* Stats */}
       <StaggerGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {mockMemberStats.map((stat, i) => (
-          <StaggerItem key={stat.id}>
-            <StatCard stat={stat} index={i} />
-          </StaggerItem>
-        ))}
+      {memberStats.map((stat, i) => (
+  <StaggerItem key={stat.id}>
+    <StatCard stat={stat} index={i} />
+  </StaggerItem>
+))}
       </StaggerGroup>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -95,8 +155,10 @@ export default function MemberDashboard() {
                 action={<Link to="/app/events"><Button variant="ghost" size="sm" rightIcon="ArrowRight">View all</Button></Link>}
               />
               <div className="space-y-3">
-                {mockTodayEvents.map((e, i) => (
-                  <motion.div
+  {events
+  .filter((e: any) => e.status === "upcoming")
+  .map((e: any, i: number) => (
+    <motion.div
                     key={e.id}
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -114,8 +176,21 @@ export default function MemberDashboard() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <Badge tone="navy" dot>{e.category}</Badge>
-                      <Button variant="secondary" size="sm" onClick={() => setSelectedEvent(e)}>Register</Button>
+                      <Badge tone="navy" dot>{e.tag}</Badge>
+                   <Button
+  variant={
+    registeredEvents.includes(String(e.id))
+      ? "outline"
+      : "secondary"
+  }
+  size="sm"
+  disabled={registeredEvents.includes(String(e.id))}
+  onClick={() => setSelectedEvent(e)}
+>
+  {registeredEvents.includes(String(e.id))
+    ? "✓ Registered"
+    : "Register"}
+</Button>
                     </div>
                   </motion.div>
                 ))}
@@ -129,28 +204,50 @@ export default function MemberDashboard() {
               <CardHeader
                 title="My Registered Events"
                 subtitle="Events you're signed up for"
-                action={<Badge tone="navy">{mockMyRegisteredEvents.length} upcoming</Badge>}
+                action={<Badge tone="navy">{registeredEvents.length} upcoming</Badge>}
               />
               <div className="space-y-3">
-                {mockMyRegisteredEvents.map((e, i) => (
-                  <motion.div
-                    key={e.id}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.18 + i * 0.08 }}
-                    className="flex items-center gap-3 rounded-xl border border-navy/15 bg-navy/[0.03] p-3.5"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy/10 text-navy">
-                      <CalendarDays className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-ink">{e.title}</p>
-                      <p className="text-xs text-ink-soft">{e.time} · {e.location}</p>
-                    </div>
-                    <Badge tone="success" dot>Registered</Badge>
-                  </motion.div>
-                ))}
-              </div>
+  {registeredEvents.length === 0 ? (
+    <div className="rounded-xl border border-dashed border-border-soft p-8 text-center">
+      <CalendarDays className="mx-auto h-10 w-10 text-ink-soft" />
+      <p className="mt-3 text-sm font-medium text-ink">
+        No registered events yet
+      </p>
+      <p className="mt-1 text-xs text-ink-soft">
+        Register for an event to see it here.
+      </p>
+    </div>
+  ) : (
+    events
+      .filter((e: any) => registeredEvents.includes(String(e.id)))
+      .map((e: any, i: number) => (
+        <motion.div
+  key={e.id}
+  initial={{ opacity: 0, x: -12 }}
+  animate={{ opacity: 1, x: 0 }}
+  transition={{ delay: 0.18 + i * 0.08 }}
+  className="flex items-center gap-3 rounded-xl border border-navy/15 bg-navy/[0.03] p-3.5"
+>
+  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy/10 text-navy">
+    <CalendarDays className="h-4 w-4" />
+  </div>
+
+  <div className="min-w-0 flex-1">
+    <p className="truncate text-sm font-semibold text-ink">
+      {e.title}
+    </p>
+    <p className="text-xs text-ink-soft">
+      {e.time} · {e.location}
+    </p>
+  </div>
+
+  <Badge tone="success" dot>
+    Registered
+  </Badge>
+</motion.div>
+      ))
+  )}
+</div>
             </Card>
           </FadeIn>
 
@@ -197,13 +294,24 @@ export default function MemberDashboard() {
                 <h3 className="mt-3 text-base font-bold text-ink">{user?.name}</h3>
                 <p className="text-xs text-ink-soft">{user?.department} · {user?.year}</p>
                 <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-                  {user?.badges?.slice(0, 2).map((b) => (
-                    <Badge key={b.id} tone="neutral">{b.label}</Badge>
-                  ))}
+                 {user?.badges?.length === 0 ? (
+  <Badge tone="neutral">No badges yet</Badge>
+) : (
+  user?.badges?.slice(0, 2).map((b) => (
+    <Badge key={b.id} tone="neutral">
+      {b.label}
+    </Badge>
+  ))
+)}
+
                 </div>
                 <div className="mt-4 grid w-full grid-cols-3 gap-2 border-t border-border-soft pt-4">
                   {[
-                    { label: 'Rank',   val: `#${myRank}`,              icon: Trophy },
+                    {
+  label: 'Rank',
+  val: myRank === 0 ? 'N/A' : `#${myRank}`,
+  icon: Trophy,
+},
                     { label: 'Points', val: `${myPoints}`,              icon: Star   },
                     { label: 'Certs',  val: `${user?.certificates?.length ?? 0}`, icon: Award  },
                   ].map((s) => (
@@ -324,7 +432,18 @@ export default function MemberDashboard() {
             <Card>
               <CardHeader title="My Achievements" />
               <div className="space-y-2.5">
-                {user?.achievements?.map((a, i) => (
+                {user?.achievements?.length === 0 ? (
+  <div className="rounded-xl border border-dashed border-border-soft p-8 text-center">
+    <Trophy className="mx-auto h-10 w-10 text-ink-soft" />
+    <p className="mt-3 text-sm font-medium text-ink">
+      No achievements yet
+    </p>
+    <p className="mt-1 text-xs text-ink-soft">
+      Participate in events to earn achievements.
+    </p>
+  </div>
+) : (
+  user?.achievements?.map((a, i) => ( 
                   <motion.div
                     key={a.id}
                     initial={{ opacity: 0, x: 10 }}
@@ -340,7 +459,7 @@ export default function MemberDashboard() {
                       <p className="text-xs text-ink-soft">{a.description}</p>
                     </div>
                   </motion.div>
-                ))}
+                )))}
               </div>
             </Card>
           </FadeIn>
